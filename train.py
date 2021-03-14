@@ -1,6 +1,8 @@
 import torch
+from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
 import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
 import torchvision
 import torchvision.transforms as transforms
 import tqdm
@@ -14,17 +16,60 @@ from models.vgg import VGG19
 
 
 
+NUM_EPOCHS = 100
+
 def main():
     train_loader, val_loader = create_CIFAR10_dataloaders()
-    model = VGG19(num_classes = 10)
+
+    model_relu = VGG19(num_classes = 10)
+    vgg_initialize_he(model_relu)
+    test_init("He ReLU", model_relu, train_loader, val_loader)
+
+    model_relu = VGG19(num_classes = 10)
+    vgg_initialize_pca(model_relu, train_loader)
+    test_init("PCA (ReLU)", model_relu, train_loader, val_loader)
+
+    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
+    vgg_initialize_pca(model_tanh, train_loader)
+    test_init("PCA Tanh", model_relu, train_loader, val_loader)
+
+    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
+    vgg_initialize_tanh_lecun_uniform(model_tanh)
+    test_init("LeCun Uniform Tanh", model_relu, train_loader, val_loader)
+
+    model_relu = VGG19(num_classes = 10)
+    vgg_initialize_orthogonal(model_relu)
+    test_init("Orthogonal (ReLU)", model_relu, train_loader, val_loader)
+
+    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
+    vgg_initialize_orthogonal(model_tanh)
+    test_init("Orthogonal (Tanh)", model_relu, train_loader, val_loader)
+
+    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
+    vgg_initialize_tanh_xavier_uniform(model_tanh)
+    test_init("Xavier Tanh", model_relu, train_loader, val_loader)
+
+
+def test_init(init_name, model, train_loader, val_loader):
+    writer = SummaryWriter()
 
     vgg_initialize_he(model)
 
     optimizer = optim.Adam(model.parameters())
+    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max = NUM_EPOCHS)
     criterion = nn.CrossEntropyLoss()
 
-    train_epoch(model, optimizer, criterion, train_loader)
+    for epoch in range(NUM_EPOCHS):
+        train_loss, train_accuracy = train_epoch(model, optimizer, criterion, train_loader)
+        val_loss, val_accuracy = validate(model, criterion, val_loader)
+        scheduler.step()
 
+        writer.add_scalar(f'{init_name}/Loss/train', train_loss), epoch)
+        writer.add_scalar(f'{init_name}/Accuracy/train', train_accuracy), epoch)
+        writer.add_scalar(f'{init_name}/Loss/validate', train_loss), epoch)
+        writer.add_scalar(f'{init_name}/Accuracy/validate', train_accuracy), epoch)
+# misc-reading-group@cs.cmu.edu
+#
 
 def check_all_inits_work(model, train_loader):
     model_relu = VGG19(num_classes = 10)
@@ -37,7 +82,6 @@ def check_all_inits_work(model, train_loader):
     vgg_initialize_orthogonal(model_relu)
     vgg_initialize_orthogonal(model_tanh)
     vgg_initialize_tanh_xavier_uniform(model_tanh)
-vgg_initialize_tanh_lecun_uniform
 
 
 def train_epoch(model, optimizer, criterion, train_loader):
