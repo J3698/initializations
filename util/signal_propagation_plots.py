@@ -12,9 +12,7 @@ from initializers.basic import \
 from dataloaders import create_CIFAR10_dataloaders
 
 
-def main():
-    train_loader, val_loader = create_CIFAR10_dataloaders()
-
+def create_all_SPPs(train_loader, val_loader):
     model_relu = VGG19(num_classes = 10)
     vgg_initialize_he(model_relu)
     signal_propagation_plot(model_relu, (5, 3, 32, 32), "He ReLU")
@@ -26,6 +24,14 @@ def main():
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     vgg_initialize_pca(model_tanh, train_loader)
     signal_propagation_plot(model_tanh, (5, 3, 32, 32),  "PCA Tanh")
+
+    model_relu = VGG19(num_classes = 10)
+    vgg_initialize_pca(model_relu, train_loader, zca = True)
+    signal_propagation_plot(model_relu, (5, 3, 32, 32), "ZCA ReLU")
+
+    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
+    vgg_initialize_pca(model_tanh, train_loader, zca = True)
+    signal_propagation_plot(model_tanh, (5, 3, 32, 32),  "ZCA Tanh")
 
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     vgg_initialize_tanh_lecun_uniform(model_tanh)
@@ -48,17 +54,21 @@ def main():
 def signal_propagation_plot(model, input_shape, filename):
     check_architecture_is_sequential(model)
 
-    stats = register_hooks(model)
+    stats, handles = register_hooks(model)
     inputs = torch.normal(mean = torch.zeros(input_shape))
 
     with torch.no_grad():
         model(inputs)
+
+    for i in handles:
+        i.remove()
 
     fig, axs = plt.subplots(2)
     fig.suptitle(f"{filename}: Average Channel Squared Mean and Average Channel Variance")
     axs[0].plot(stats[0])
     axs[1].plot(stats[1])
     plt.savefig(f"images/{filename}.png")
+
 
 
 def print_test(stats_dict, idx):
@@ -88,10 +98,12 @@ def average_channel_variance(tensor):
 
 def register_hooks(model):
     stats_dict = ([], [])
+    handles = []
     for idx, conv in enumerate(get_conv2d_layers(model)):
-        conv.register_forward_hook(print_test(stats_dict, idx))
+        handle = conv.register_forward_hook(print_test(stats_dict, idx))
+        handles.append(handle)
 
-    return stats_dict
+    return stats_dict, handles
 
 
 def get_conv2d_layers(model):
