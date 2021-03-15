@@ -46,3 +46,61 @@ def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> 
                              if i < len(train_loader) / 20]
     return torch.cat(data, dim =  0)
 
+
+def calc_channel_means_and_vars(layer, batches):
+    out = put_all_batches_through_layer(layer, batches)
+    as_one_batch = batches_to_one_batch(out)
+    spatial_flattened = flatten_spatial_dims(as_one_batch)
+
+    channel_means = means_per_channel(spatial_flattened)
+    channel_vars = mean_vars_per_channeel(spatial_flattened)
+
+    return channel_means, channel_vars
+
+
+def calc_avg_squared_mean_and_avg_var(channel_means, channel_vars):
+    avg_squared_mean = (channel_means ** 2).mean()
+    avg_var = channel_vars.mean()
+
+    return avg_squared_mean, avg_var
+
+def means_per_channel(data):
+    data = data.transpose(0, 1)
+    data = data.reshape(data.shape[0], -1)
+
+    return data.mean(dim = 1)
+
+
+def mean_vars_per_channeel(data):
+    var_per_channel_and_instance = torch.var(data, dim = 2)
+    avg_var_per_channel = var_per_channel_and_instance.mean(dim = 0)
+    return avg_var_per_channel
+
+
+def batches_to_one_batch(batches):
+    total_instances = batches.shape[0] * batches.shape[1]
+    new_shape = (total_instances,) + batches.shape[2:]
+
+    return batches.reshape(new_shape)
+
+
+def flatten_spatial_dims(batch):
+    batch_size, channels, width, height = batch.shape
+    return batch.reshape(batch_size, channels, width * height)
+
+
+def put_all_batches_through_layer(layer, batches):
+    num_batches, batch_size = batches.shape[0:2]
+    non_batch_dims = batches.shape[2:]
+
+    output = []
+    for batch in batches:
+        output.append(layer(batch)[None, ...])
+        del batch
+
+    catted = torch.cat(output, 0)
+
+    del output
+    del batches
+
+    return catted
