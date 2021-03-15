@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from initializers.common import *
 from initializers.lsuv import iteratively_scale_and_rebias_layer
 from torch.utils.data import DataLoader
@@ -64,14 +65,15 @@ def initialize_pca_if_conv2d(layer: nn.Conv2d, data_orig: torch.Tensor,
 
 
 def sorted_pcad_data(data):
-    data = data - data.mean(dim = 0, keepdims = True)
-    Z = data @ data.T
-    s, V = torch.linalg.eigh(Z)
-    sorted_indices = torch.argsort(s)
-    s = s[sorted_indices]
-    V = V[:, sorted_indices]
+    with torch.no_grad():
+        data = data - data.mean(dim = 0, keepdims = True)
+        Z = data @ data.T
+        s, V = np.linalg.eigh(Z)
+        sorted_indices = np.argsort(s)
+        s = s[sorted_indices]
+        V = V[:, sorted_indices]
 
-    return s, V
+        return torch.from_numpy(s), torch.from_numpy(V)
 
 
 def reshape_and_transpose_batches_for_pca(batches):
