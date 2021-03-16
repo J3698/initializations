@@ -34,46 +34,47 @@ def main():
     # create_all_SPPs(train_loader, val_loader)
     print("Created SPPs")
 
+    writer = SummaryWriter()
+
     model_relu = VGG19(num_classes = 10)
     vgg_initialize_he(model_relu)
-    test_init("He ReLU", model_relu, train_loader, val_loader)
+    test_init("He ReLU", model_relu, train_loader, val_loader, writer)
 
     model_relu = VGG19(num_classes = 10)
     vgg_initialize_pca(model_relu, train_loader)
-    test_init("PCA (ReLU)", model_relu, train_loader, val_loader)
+    test_init("PCA (ReLU)", model_relu, train_loader, val_loader, writer)
 
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     vgg_initialize_pca(model_tanh, train_loader)
-    test_init("PCA Tanh", model_relu, train_loader, val_loader)
+    test_init("PCA Tanh", model_relu, train_loader, val_loader, writer)
 
     model_relu = VGG19(num_classes = 10)
     vgg_initialize_pca(model_relu, train_loader)
-    test_init("ZCA (ReLU)", model_relu, train_loader, val_loader)
+    test_init("ZCA (ReLU)", model_relu, train_loader, val_loader, writer)
 
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     vgg_initialize_pca(model_tanh, train_loader)
-    test_init("ZCA Tanh", model_relu, train_loader, val_loader)
+    test_init("ZCA Tanh", model_relu, train_loader, val_loader, writer)
 
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     vgg_initialize_tanh_lecun_uniform(model_tanh)
-    test_init("LeCun Uniform Tanh", model_relu, train_loader, val_loader)
+    test_init("LeCun Uniform Tanh", model_relu, train_loader, val_loader, writer)
 
     model_relu = VGG19(num_classes = 10)
     vgg_initialize_orthogonal(model_relu)
-    test_init("Orthogonal (ReLU)", model_relu, train_loader, val_loader)
+    test_init("Orthogonal (ReLU)", model_relu, train_loader, val_loader, writer)
 
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     vgg_initialize_orthogonal(model_tanh)
-    test_init("Orthogonal (Tanh)", model_relu, train_loader, val_loader)
+    test_init("Orthogonal (Tanh)", model_relu, train_loader, val_loader, writer)
 
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     vgg_initialize_tanh_xavier_uniform(model_tanh)
-    test_init("Xavier Tanh", model_relu, train_loader, val_loader)
+    test_init("Xavier Tanh", model_relu, train_loader, val_loader, writer)
 
 
-def test_init(init_name, model, train_loader, val_loader):
+def test_init(init_name, model, train_loader, val_loader, writer):
     print(f"Testing intit: {init_name}")
-    writer = SummaryWriter()
 
     model.to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr = 1e-4)
