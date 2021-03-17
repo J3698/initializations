@@ -89,8 +89,8 @@ def test_init(init_name, model, train_loader, val_loader, writer):
 
         writer.add_scalar(f'{init_name}/Loss/train', train_loss, epoch)
         writer.add_scalar(f'{init_name}/Accuracy/train', train_accuracy, epoch)
-        writer.add_scalar(f'{init_name}/Loss/validate', train_loss, epoch)
-        writer.add_scalar(f'{init_name}/Accuracy/validate', train_accuracy, epoch)
+        writer.add_scalar(f'{init_name}/Loss/validate', val_loss, epoch)
+        writer.add_scalar(f'{init_name}/Accuracy/validate', val_accuracy, epoch)
         print(f"stats: {train_loss:.2f}, {100 * train_accuracy:.2f}%, {train_loss:.2f}, {100 * train_accuracy:.2f}%")
 # misc-reading-group@cs.cmu.edu
 #
@@ -118,7 +118,7 @@ def train_epoch(model, optimizer, criterion, train_loader):
     for i, (x, y) in tqdm.tqdm(enumerate(train_loader), total = len(train_loader)):
         x = x.to(DEVICE)
         y = y.to(DEVICE)
- 
+
         optimizer.zero_grad()
         y_pred = model(x)
         loss = criterion(y_pred, y)
