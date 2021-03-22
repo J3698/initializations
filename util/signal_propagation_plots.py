@@ -14,7 +14,7 @@ from dataloaders import create_CIFAR10_dataloaders
 
 def create_all_SPPs(train_loader, val_loader):
     model_relu = VGG19(num_classes = 10)
-    vgg_initialize_he(model_relu)
+    vgg_initialize_he(model_relu, train_loader)
     signal_propagation_plot(model_relu, (5, 3, 32, 32), "He ReLU")
 
     model_relu = VGG19(num_classes = 10)
@@ -49,65 +49,75 @@ def create_all_SPPs(train_loader, val_loader):
     vgg_initialize_tanh_xavier_uniform(model_tanh)
     signal_propagation_plot(model_tanh, (5, 3, 32, 32), "Xavier Tanh")
 
-
-
-def signal_propagation_plot(model, input_shape, filename):
-    check_architecture_is_sequential(model)
-
-    stats, handles = register_hooks(model)
+def signal_propagation_plot(model, input_shape, name):
     inputs = torch.normal(mean = torch.zeros(input_shape))
 
-    with torch.no_grad():
+    model_relu = VGG19(num_classes = 10)
+    vgg_initialize_he(model_relu)
+    with SignalPropagationPlotter(model, name):
         model(inputs)
 
-    for i in handles:
-        i.remove()
-
-    fig, axs = plt.subplots(2)
-    fig.suptitle(f"{filename}: Average Channel Squared Mean and Average Channel Variance")
-    axs[0].plot(stats[0])
-    axs[1].plot(stats[1])
-    plt.savefig(f"images/{filename}.png")
+class SignalPropagationPlotter:
+    def __init__(self, model, filename):
+        check_architecture_is_sequential(model)
+        self.model = model
+        self.filename = filename
 
 
-
-def print_test(stats_dict, idx):
-    def forward_hook(self, layer_input, layer_output):
-        average_channel_squared_mean_act = average_channel_squared_mean(layer_output)
-        average_channel_variance_act = average_channel_variance(layer_output)
-
-        stats_dict[0].append(average_channel_squared_mean_act)
-        stats_dict[1].append(average_channel_variance_act)
-
-    return forward_hook
+    def __enter__(self):
+        self.stats, self.handles = register_hooks(self.model)
 
 
-def average_channel_squared_mean(tensor):
-    mean_per_channel = tensor.mean(0).mean(1).mean(1)
-    squared_mean_per_channel = mean_per_channel ** 2
-    return squared_mean_per_channel.mean()
+    def __exit__(self):
+        for i in self.handles:
+            i.remove()
+
+        fig, axs = plt.subplots(2)
+        fig.suptitle(f"{self.filename}: Avg. Channel Squared Mean / Avg. Channel Variance")
+        axs[0].plot(self.stats[0])
+        axs[1].plot(self.stats[1])
+        plt.savefig(f"images/{self.filename}.png")
 
 
-def average_channel_variance(tensor):
-    channel_first = tensor.transpose(0, 1)
-    num_channels = tensor.shape[0]
-    for_var_calculation = channel_first.reshape(num_channels, -1)
-    variance_per_channel = for_var_calculation.var(dim = 1)
-    return variance_per_channel.mean()
+    def activation_hook(stats_dict, idx):
+        def forward_hook(self, layer_input, layer_output):
+            average_channel_squared_mean_act = average_channel_squared_mean(layer_output)
+            average_channel_variance_act = average_channel_variance(layer_output)
+
+            stats_dict[0].append(average_channel_squared_mean_act)
+            stats_dict[1].append(average_channel_variance_act)
+
+        return forward_hook
 
 
-def register_hooks(model):
-    stats_dict = ([], [])
-    handles = []
-    for idx, conv in enumerate(get_conv2d_layers(model)):
-        handle = conv.register_forward_hook(print_test(stats_dict, idx))
-        handles.append(handle)
-
-    return stats_dict, handles
+    def average_channel_squared_mean(self, tensor):
+        mean_per_channel = tensor.mean(0).mean(1).mean(1)
+        squared_mean_per_channel = mean_per_channel ** 2
+        return squared_mean_per_channel.mean()
 
 
-def get_conv2d_layers(model):
-    return [i for i in model.layers if isinstance(i, nn.Conv2d)]
+    def average_channel_variance(self, tensor):
+        channel_first = tensor.transpose(0, 1)
+        num_channels = tensor.shape[0]
+        for_var_calculation = channel_first.reshape(num_channels, -1)
+        variance_per_channel = for_var_calculation.var(dim = 1)
+        return variance_per_channel.mean()
+
+
+    def register_hooks(self, model):
+        stats_dict = ([], [])
+        handles = []
+        for idx, conv in enumerate(get_conv2d_layers(model)):
+            hook = self.activation_hook(stats_dict, idx)
+            handle = conv.register_forward_hook(hook)
+            handles.append(handle)
+
+        return stats_dict, handles
+
+
+    def get_conv2d_layers(self, model):
+        return [i for i in model.layers if isinstance(i, nn.Conv2d)]
+
 
 
 if __name__ == "__main__":

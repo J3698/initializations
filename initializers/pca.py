@@ -61,6 +61,7 @@ def initialize_pca_if_conv2d(layer: nn.Conv2d, data_orig: torch.Tensor,
         layer.bias[...] = 0
 
     iteratively_scale_and_rebias_layer(layer, data_orig, verbose = verbose)
+    breakpoint()
 
 
 

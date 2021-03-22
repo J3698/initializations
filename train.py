@@ -28,10 +28,10 @@ def main():
     train_loader, val_loader = create_CIFAR10_dataloaders(BATCH_SIZE)
     print("Created data loaders")
 
-    # check_all_inits_work(train_loader, val_loader)
+    check_all_inits_work(train_loader, val_loader)
     print("Ran each init as a test")
 
-    # create_all_SPPs(train_loader, val_loader)
+    create_all_SPPs(train_loader, val_loader)
     print("Created SPPs")
 
     writer = SummaryWriter()
