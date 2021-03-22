@@ -91,7 +91,7 @@ def test_init(init_name, model, train_loader, val_loader, writer):
         writer.add_scalar(f'{init_name}/Accuracy/train', train_accuracy, epoch)
         writer.add_scalar(f'{init_name}/Loss/validate', val_loss, epoch)
         writer.add_scalar(f'{init_name}/Accuracy/validate', val_accuracy, epoch)
-        print(f"stats: {train_loss:.2f}, {100 * train_accuracy:.2f}%, {train_loss:.2f}, {100 * train_accuracy:.2f}%")
+        print(f"stats: {train_loss:.2f}, {100 * train_accuracy:.2f}%, {val_loss:.2f}, {100 * val_accuracy:.2f}%")
 # misc-reading-group@cs.cmu.edu
 #
 
