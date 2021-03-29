@@ -53,6 +53,11 @@ def iteratively_scale_and_rebias_conv_layer(layer, batches, max_iters = 5,
             print(f"avg squared mean: {avg_squared_mean}")
             print(f"avg var: {avg_var}")
 
+    if max_iters_left <= 0:
+        print("ran out of iters")
+    else:
+        print("converged")
+
 
 def scale_and_rebias_layer(layer, channel_means, channel_vars):
     """

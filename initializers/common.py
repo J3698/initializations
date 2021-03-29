@@ -42,16 +42,14 @@ def get_first_batch_inputs(train_loader):
 def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> torch.Tensor:
     torch.multiprocessing.set_sharing_strategy('file_system')
 
-    max_items = len(train_loader) // 100
+    max_items = len(train_loader) // 8
     print(max_items)
     train_loader = islice(train_loader, 0, max_items)
     if show_progress:
         train_loader = tqdm.tqdm(train_loader, total = max_items)
 
-    # import pdb
-    # pdb.set_trace()
 
-    print(f"item: {next(iter(train_loader))[0].shape}, len: {len(train_loader)}")
+    print(f"item: {next(iter(train_loader))[0].shape}, len: {max_items}")
     loader = enumerate(train_loader)
     data = [x[None, ...] for i, (x, y) in loader]
     return torch.cat(data, dim =  0).cuda()

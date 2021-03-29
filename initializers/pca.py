@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from initializers.common import *
-from initializers.lsuv import iteratively_scale_and_rebias_layer
+from initializers.lsuv import iteratively_scale_and_rebias_conv_layer
 from torch.utils.data import DataLoader
 import tqdm
 from math import ceil
@@ -20,6 +20,7 @@ def verbose_test():
 def initialize_pca(model: nn.Module, train_loader: DataLoader, zca = False,\
                        show_progress = False, verbose = False) -> None:
     model = model.cuda()
+    model.train()
 
     print("Checking that model supports PCA")
     check_model_supports_pca(model)
@@ -33,10 +34,14 @@ def initialize_pca(model: nn.Module, train_loader: DataLoader, zca = False,\
         initialize_pca_if_conv2d(layer, last_layers_output, zca = zca, verbose = verbose)
         initialize_pca_if_linear(layer, last_layers_output, zca = zca, verbose = verbose)
         last_layers_output = put_all_batches_through_layer(layer, last_layers_output)
+        if torch.isnan(last_layers_output.mean()):
+            print("Error")
+        if torch.isnan(last_layers_output.var()):
+            print("Error")
 
         if verbose:
             with torch.no_grad():
-                var = torch.var(last_layers_output)
+                var = s_ntorch.var(last_layers_output)
                 print(var)
 
 
@@ -48,6 +53,7 @@ def initialize_pca_if_conv2d(layer, data_orig: torch.Tensor,
     data = reshape_and_transpose_batches_for_conv_pca(data_orig)
 
     # PCA / ZCA
+    # print(len(data))
     data = data[:2000]
     s, V = sorted_pcad_data(data)
 
@@ -75,11 +81,12 @@ def initialize_pca_if_linear(layer, data_orig: torch.Tensor,
 
     if not isinstance(layer, nn.Linear): return
 
-    print(data_orig.shape)
+    #print(data_orig.shape)
 
     data = data_orig.reshape(-1, data_orig.shape[-1])
 
     # PCA / ZCA
+    #print(len(data))
     data = data[:2048]
     s, V = sorted_pcad_data(data)
 
@@ -127,7 +134,7 @@ def reshape_and_transpose_batches_for_conv_pca(batches):
 
 
 def check_model_supports_pca(model: nn.Module) -> None:
-    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Tanh, nn.Flatten)
+    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Tanh, nn.Flatten, nn.BatchNorm2d, nn.AvgPool2d)
     check_architecture_is_sequential(model)
     check_all_layers_supported(model.layers, supported_layers)
 

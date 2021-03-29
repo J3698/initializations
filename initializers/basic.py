@@ -9,6 +9,7 @@ def initialize_tanh_xavier_uniform(model, show_progress = False):
 
     layers = model.layers if not show_progress else tqdm.tqdm(model.layers)
     for layer in layers:
+        if isinstance(layer, (nn.Linear, nn.Conv2d)):
             torch.nn.init.xavier_uniform_(layer.weight)
             torch.nn.init.zeros_(layer.bias)
 
@@ -32,7 +33,7 @@ def lecun_uniform_init_weight(weight, show_progress = False):
 
 
 def check_model_supports_tanh_basic(model: nn.Module) -> None:
-    supported_layers = (nn.Linear, nn.Conv2d, nn.Tanh, nn.Flatten)
+    supported_layers = (nn.Linear, nn.Conv2d, nn.Tanh, nn.Flatten, nn.Module)
     check_architecture_is_sequential(model)
     check_all_layers_supported(model.layers, supported_layers)
 
@@ -48,7 +49,7 @@ def initialize_he(model, show_progress = False):
 
 
 def check_model_supports_relu_he(model: nn.Module) -> None:
-    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Flatten)
+    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Flatten, nn.Module)
     check_architecture_is_sequential(model)
     check_all_layers_supported(model.layers, supported_layers)
 
@@ -64,7 +65,7 @@ def initialize_orthogonal(model, show_progress = False):
 
 
 def check_model_supports_orthogonal(model: nn.Module) -> None:
-    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Tanh, nn.Flatten)
+    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Tanh, nn.Flatten, nn.Module)
     check_architecture_is_sequential(model)
     check_all_layers_supported(model.layers, supported_layers)
 
