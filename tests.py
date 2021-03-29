@@ -1,3 +1,5 @@
+import torch.nn as nn
+
 from models.mlp import MLP
 from models.vgg import VGG19
 

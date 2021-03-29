@@ -83,6 +83,7 @@ class SignalPropagationPlotter:
         axs[0].plot(self.stats[0])
         axs[1].plot(self.stats[1])
         plt.savefig(f"images/{self.filename}.png")
+        plt.close()
 
 
     def activation_hook(self, stats_dict, idx):
