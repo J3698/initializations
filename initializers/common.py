@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import tqdm
+from itertools import islice
+
 
 class ArchitectureNotSupportedException(Exception):
     def __init__(self, model):
@@ -39,23 +41,44 @@ def get_first_batch_inputs(train_loader):
 
 def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> torch.Tensor:
     torch.multiprocessing.set_sharing_strategy('file_system')
-    if show_progress:
-        train_loader = tqdm.tqdm(train_loader)
 
-    data = [x[None, ...] for i, (x, y) in enumerate(train_loader)
-                             if i < len(train_loader) / 20]
-    return torch.cat(data, dim =  0)
+    max_items = len(train_loader) // 100
+    print(max_items)
+    train_loader = islice(train_loader, 0, max_items)
+    if show_progress:
+        train_loader = tqdm.tqdm(train_loader, total = max_items)
+
+    # import pdb
+    # pdb.set_trace()
+
+    print(f"item: {next(iter(train_loader))[0].shape}, len: {len(train_loader)}")
+    loader = enumerate(train_loader)
+    data = [x[None, ...] for i, (x, y) in loader]
+    return torch.cat(data, dim =  0).cuda()
 
 
 def calc_channel_means_and_vars(layer, batches):
     out = put_all_batches_through_layer(layer, batches)
     as_one_batch = batches_to_one_batch(out)
+
     spatial_flattened = flatten_spatial_dims(as_one_batch)
 
     channel_means = means_per_channel(spatial_flattened)
     channel_vars = mean_vars_per_channeel(spatial_flattened)
 
     return channel_means, channel_vars
+
+def calc_neuron_means_and_vars(layer, batches):
+    out = put_all_batches_through_layer(layer, batches)
+    as_one_batch = batches_to_one_batch(out)
+    neuron_means = tensor.mean(0)
+    variance_per_neuron = tensor.var(0)
+
+    assert neuron_means.shape == (layer.out_features,)
+    assert variance_per_neuron.shape == (layer.out_features,)
+
+    return neuron_means, variance_per_neuron
+
 
 
 def calc_avg_squared_mean_and_avg_var(channel_means, channel_vars):

@@ -1,5 +1,8 @@
+#!/usr/bin/env python3
+
 import torch
 import os
+from contextlib import ExitStack
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn as nn
 import torch.optim as optim
@@ -12,7 +15,7 @@ from initializers.pca import vgg_initialize_pca
 from initializers.basic import \
         vgg_initialize_he, vgg_initialize_orthogonal, \
         vgg_initialize_tanh_lecun_uniform, vgg_initialize_tanh_xavier_uniform
-from util.signal_propagation_plots import signal_propagation_plot, create_all_SPPs
+from util.signal_propagation_plots import signal_propagation_plot, create_all_SPPs, SignalPropagationPlotter
 from models.vgg import VGG19
 
 
@@ -28,22 +31,27 @@ def main():
     train_loader, val_loader = create_CIFAR10_dataloaders(BATCH_SIZE)
     print("Created data loaders")
 
+    """
     check_all_inits_work(train_loader, val_loader)
     print("Ran each init as a test")
 
     create_all_SPPs(train_loader, val_loader)
     print("Created SPPs")
+    """
 
     writer = SummaryWriter()
 
+    """
     model_relu = VGG19(num_classes = 10)
     vgg_initialize_he(model_relu)
     test_init("He ReLU", model_relu, train_loader, val_loader, writer)
+    """
 
     model_relu = VGG19(num_classes = 10)
     vgg_initialize_pca(model_relu, train_loader)
     test_init("PCA (ReLU)", model_relu, train_loader, val_loader, writer)
 
+    """
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     vgg_initialize_pca(model_tanh, train_loader)
     test_init("PCA Tanh", model_relu, train_loader, val_loader, writer)
@@ -71,6 +79,7 @@ def main():
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     vgg_initialize_tanh_xavier_uniform(model_tanh)
     test_init("Xavier Tanh", model_relu, train_loader, val_loader, writer)
+    """
 
 
 def test_init(init_name, model, train_loader, val_loader, writer):
@@ -82,7 +91,7 @@ def test_init(init_name, model, train_loader, val_loader, writer):
     criterion = nn.CrossEntropyLoss()
 
     for epoch in range(NUM_EPOCHS):
-        train_loss, train_accuracy = train_epoch(model, optimizer, criterion, train_loader)
+        train_loss, train_accuracy = train_epoch(model, optimizer, criterion, train_loader, epoch, init_name)
         val_loss, val_accuracy = validate(model, criterion, val_loader)
 
         scheduler.step()
@@ -95,32 +104,24 @@ def test_init(init_name, model, train_loader, val_loader, writer):
 # misc-reading-group@cs.cmu.edu
 #
 
-def check_all_inits_work(train_loader, val_loader):
-    model_relu = VGG19(num_classes = 10)
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-
-    vgg_initialize_he(model_relu)
-    vgg_initialize_pca(model_relu, train_loader)
-    vgg_initialize_pca(model_tanh, train_loader)
-    vgg_initialize_pca(model_relu, train_loader, zca = True)
-    vgg_initialize_pca(model_tanh, train_loader, zca = True)
-    vgg_initialize_tanh_lecun_uniform(model_tanh)
-    vgg_initialize_orthogonal(model_relu)
-    vgg_initialize_orthogonal(model_tanh)
-    vgg_initialize_tanh_xavier_uniform(model_tanh)
 
 
-def train_epoch(model, optimizer, criterion, train_loader):
+def train_epoch(model, optimizer, criterion, train_loader, epoch, init_name):
     correct, total = 0.0, 0.0
     total_loss = 0.0
 
     model.train()
+
+    spp = SignalPropagationPlotter(model, f"{init_name}-{epoch}")
     for i, (x, y) in tqdm.tqdm(enumerate(train_loader), total = len(train_loader)):
         x = x.to(DEVICE)
         y = y.to(DEVICE)
 
         optimizer.zero_grad()
-        y_pred = model(x)
+
+        with spp if i == 0 else ExitStack():
+            y_pred = model(x)
+
         loss = criterion(y_pred, y)
         total_loss += loss.item()
         loss.backward()
