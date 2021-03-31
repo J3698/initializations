@@ -17,45 +17,6 @@ from cifar_dataloaders import create_CIFAR10_dataloaders
 from librispeech_dataloaders import create_librispeech_dataloaders
 
 
-def create_all_SPPs(train_loader, val_loader):
-    raise Exception("Deprecated")
-
-    model_relu = VGG19(num_classes = 10)
-    vgg_initialize_he(model_relu, train_loader)
-    signal_propagation_plot(model_relu, (5, 3, 32, 32), "He ReLU")
-
-    model_relu = VGG19(num_classes = 10)
-    vgg_initialize_pca(model_relu, train_loader)
-    signal_propagation_plot(model_relu, (5, 3, 32, 32), "PCA ReLU")
-
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_pca(model_tanh, train_loader)
-    signal_propagation_plot(model_tanh, (5, 3, 32, 32),  "PCA Tanh")
-
-    model_relu = VGG19(num_classes = 10)
-    vgg_initialize_pca(model_relu, train_loader, zca = True)
-    signal_propagation_plot(model_relu, (5, 3, 32, 32), "ZCA ReLU")
-
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_pca(model_tanh, train_loader, zca = True)
-    signal_propagation_plot(model_tanh, (5, 3, 32, 32),  "ZCA Tanh")
-
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_tanh_lecun_uniform(model_tanh)
-    signal_propagation_plot(model_tanh, (5, 3, 32, 32), "LeCun Uniform Tanh")
-
-    model_relu = VGG19(num_classes = 10)
-    vgg_initialize_orthogonal(model_relu)
-    signal_propagation_plot(model_relu, (5, 3, 32, 32), "Orthogonal")
-
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_orthogonal(model_tanh)
-    signal_propagation_plot(model_tanh, (5, 3, 32, 32), "Orthogonal")
-
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_tanh_xavier_uniform(model_tanh)
-    signal_propagation_plot(model_tanh, (5, 3, 32, 32), "Xavier Tanh")
-
 def signal_propagation_plot(model, input_shape, name):
     inputs = torch.normal(mean = torch.zeros(input_shape))
 
