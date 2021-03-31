@@ -41,3 +41,21 @@ class VGG19(nn.Module):
         return out
 
 
+class VGG19BN(nn.Module):
+    def __init__(self, num_classes, nonlinearity = nn.ReLU):
+        super().__init__()
+
+        layers = []
+        to_copy = VGG19(num_classes, nonlinearity)
+        for layer in to_copy.layers:
+            layers.append(layer)
+            if isinstance(layer, nn.Conv2d):
+                layers.append(nn.BatchNorm2d(layer.out_channels))
+        self.layers = nn.Sequential(*layers)
+
+
+    def forward(self, x):
+        out = self.layers(x)
+        return out
+
+
