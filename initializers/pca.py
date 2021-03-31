@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 import tqdm
 from math import ceil
 from models.vgg import VGG19
+from sklearn.cluster import KMeans
 from cifar_dataloaders import create_CIFAR10_dataloaders
 
 
@@ -37,13 +38,49 @@ def initialize_layer_zca(layer, last_layers_output, verbose = False) -> None:
     initialize_pca_if_conv2d(layer, last_layers_output, zca = True, verbose = verbose)
     initialize_pca_if_linear(layer, last_layers_output, zca = True, verbose = verbose)
 
+def initialize_layer_kmeans(layer, last_layers_output, verbose = False) -> None:
+    initialize_kmeans_if_conv2d(layer, last_layers_output, zca = True, verbose = verbose)
+    initialize_kmeans_if_linear(layer, last_layers_output, zca = True, verbose = verbose)
+
 
 initialize_lsuv_pca = create_scaling_based_init(initialize_layer_pca, check_model_supports_pca)
 initialize_lsuv_zca = create_scaling_based_init(initialize_layer_zca, check_model_supports_pca)
+initialize_lsuv_kmeans = create_scaling_based_init(initialize_layer_kmeans, None)
 
 
 initialize_pca = create_layer_wise_init(initialize_layer_pca, check_model_supports_pca)
 initialize_zca = create_layer_wise_init(initialize_layer_zca, check_model_supports_pca)
+initialize_kmeans = create_scaling_based_init(initialize_layer_kmeans, None)
+
+
+def initialize_kmeans_if_conv2d(layer, last_layers_output, zca = True, verbose = False):
+    if not isinstance(layer, nn.Conv2d): return
+
+    data = batches_to_one_batch(last_layers_output)
+    b, x, w, h = data.shape
+    data = data.reshape(b, -1)
+    necessary = layer.weight.shape.numel() // data.shape[1] + 1
+    km = KMeans(necessary).fit(data.cpu().detach().numpy()).cluster_centers_
+
+    weight = km.reshape(-1)[:layer.weight.shape.numel()]
+
+    with torch.no_grad():
+        layer.weight[...] = torch.from_numpy(weight.reshape(layer.weight.shape)).cuda()
+        layer.bias[...] = 0
+
+
+def initialize_kmeans_if_linear(layer, last_layers_output, zca = True, verbose = False):
+    if not isinstance(layer, nn.Linear): return
+
+    data = batches_to_one_batch(last_layers_output)
+    b, f  = data.shape
+    necessary = layer.weight.shape.numel() // data.shape[1] + 1
+    km = KMeans(necessary).fit(data)
+    weight = km.reshape(-1)[:layer.weight.shape.numel()]
+
+    with torch.no_grad():
+        layer.weight[...] = weight.reshape(layer.weight.shape)
+        layer.bias[...] = 0
 
 
 def initialize_pca_if_conv2d(layer, data_orig: torch.Tensor,

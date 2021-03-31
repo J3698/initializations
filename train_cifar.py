@@ -12,7 +12,7 @@ import torchvision
 import torchvision.transforms as transforms
 import tqdm
 from cifar_dataloaders import create_CIFAR10_dataloaders
-from initializers.pca import initialize_pca
+from initializers.pca import *
 from initializers.basic import \
         initialize_he, initialize_orthogonal, \
         initialize_tanh_lecun_uniform, initialize_tanh_xavier_uniform
