@@ -16,8 +16,8 @@ from initializers.pca import initialize_pca
 from initializers.basic import \
         initialize_he, initialize_orthogonal, \
         initialize_tanh_lecun_uniform, initialize_tanh_xavier_uniform
-from util.signal_propagation_plots import signal_propagation_plot, create_all_SPPs, SignalPropagationPlotter
-from models.vgg import VGG19
+from util.signal_propagation_plots import signal_propagation_plot, SignalPropagationPlotter
+from models.vgg import VGG19, VGG19BN
 from tests import check_all_vgg_inits_work
 
 cuda = torch.cuda.is_available()
@@ -37,26 +37,43 @@ def main():
 
     writer = SummaryWriter()
 
-    """
-    stable = False
-    while not stable:
-        stable = True
-        convs = filter(lambda x: isinstance(x, nn.Conv2d), model_relu.layers)
-        for i, conv in enumerate(convs):
-            t = conv.weight
-            s = conv.bias
-            stats = [t.mean().item(), t.var().item(), t.min().item(), t.max().item(),
-                     s.mean().item(), s.var().item(), s.min().item(), s.max().item()]
-            if inf in stats:
-                print(stats)
-                stable = False
-                print(conv)
-            else:
-                print(i, f"stable {[round(i, 2) for i in stats]}")
-                print(conv)
-    print("stable")
-    """
+    model_relu = VGG19BN(num_classes = 10)
+    initialize_he(model_relu)
+    test_init("He (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
 
+    model_relu = VGG19BN(num_classes = 10)
+    initialize_pca(model_relu, train_loader)
+    test_init("PCA (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+
+    model_relu = VGG19BN(num_classes = 10)
+    initialize_zca(model_relu, train_loader)
+    test_init("ZCA (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+
+    model_relu = VGG19BN(num_classes = 10)
+    initialize_orthogonal(model_relu)
+    test_init("Orth (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+
+
+    model_tanh = VGG19BN(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_pca(model_tanh, train_loader)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    initialize_zca(model_tanh, train_loader)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    initialize_tanh_lecun_uniform(model_tanh)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    initialize_orthogonal(model_tanh)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    initialize_tanh_xavier_uniform(model_tanh)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+
+
+
+    """
     model_relu = VGG19(num_classes = 10)
     initialize_pca(model_relu, train_loader)
     test_init("PCA (ReLU)", model_relu, train_loader, val_loader, writer)
@@ -92,6 +109,7 @@ def main():
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
     initialize_tanh_xavier_uniform(model_tanh)
     test_init("Xavier Tanh", model_relu, train_loader, val_loader, writer)
+    """
 
 
 def test_init(init_name, model, train_loader, val_loader, writer):
