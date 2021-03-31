@@ -4,6 +4,53 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import tqdm
 from itertools import islice
+from functools import partial
+
+
+def create_layer_wise_init(layer_init_function, model_checker):
+    kwargs = { "layer_init_function": layer_init_function, "model_checker": model_checker }
+    initializer = partial(layer_wise_initialize, **kwargs)
+    return initializer
+
+def layer_wise_initialize(model: nn.Module, train_loader, layer_init_function,
+                          show_progress = False, verbose = False, model_checker = None) -> None:
+    model = model.cuda()
+    model.train()
+
+    if model_checker is None:
+        check_architecture_is_sequential(model)
+    else:
+        model_checker(model)
+
+    last_layers_output = get_batch_of_all_inputs(train_loader, show_progress)
+
+    layers = tqdm.tqdm(model.layers) if show_progress else model.layers
+
+    for layer in layers:
+        layer_init_function(layer, last_layers_output)
+        # iteratively_scale_and_rebias_linear_layer(layer, last_layers_output, verbose = verbose)
+        last_layers_output = put_all_batches_through_layer(layer, last_layers_output)
+
+        warn_about_infs_and_nans(layer, last_layers_output)
+
+
+        if verbose:
+            with torch.no_grad():
+                var = s_ntorch.var(last_layers_output)
+                print(var)
+
+def warn_about_infs_and_nans(layer, layer_output):
+    if torch.any(torch.isnan(layer_output)):
+        print("Warning: nans in output")
+
+    if torch.any(torch.isinf(layer_output)):
+        print("Warning: infs in output")
+
+    for param in layer.parameters():
+        if torch.any(torch.isnan(param)):
+            print("Warning: nans in output")
+        if torch.any(torch.isinf(param)):
+            print("Warning: infs in output")
 
 
 class ArchitectureNotSupportedException(Exception):
@@ -42,14 +89,13 @@ def get_first_batch_inputs(train_loader):
 def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> torch.Tensor:
     torch.multiprocessing.set_sharing_strategy('file_system')
 
-    max_items = len(train_loader) // 8
-    print(max_items)
+    max_items = len(train_loader) // 20
     train_loader = islice(train_loader, 0, max_items)
     if show_progress:
         train_loader = tqdm.tqdm(train_loader, total = max_items)
 
 
-    print(f"item: {next(iter(train_loader))[0].shape}, len: {max_items}")
+    # print(f"item: {next(iter(train_loader))[0].shape}, len: {max_items}")
     loader = enumerate(train_loader)
     data = [x[None, ...] for i, (x, y) in loader]
     return torch.cat(data, dim =  0).cuda()

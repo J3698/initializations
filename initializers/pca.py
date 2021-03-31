@@ -2,14 +2,23 @@ import torch
 import torch.nn as nn
 import numpy as np
 from initializers.common import *
-from initializers.lsuv import iteratively_scale_and_rebias_conv_layer
+from initializers.lsuv import create_scaling_based_init
 from torch.utils.data import DataLoader
 import tqdm
 from math import ceil
 from models.vgg import VGG19
 from cifar_dataloaders import create_CIFAR10_dataloaders
 
+
 AFFINE_TYPES = (nn.Linear, nn.Conv2d)
+
+
+def check_model_supports_pca(model: nn.Module) -> None:
+    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Tanh, nn.Flatten, nn.BatchNorm2d, nn.AvgPool2d)
+    check_architecture_is_sequential(model)
+    check_all_layers_supported(model.layers, supported_layers)
+
+
 
 def verbose_test():
     train_loader, _ = create_CIFAR10_dataloaders()
@@ -17,32 +26,24 @@ def verbose_test():
     vgg_initialize_pca(model_tanh, train_loader, verbose = False, show_progress = True)
 
 
-def initialize_pca(model: nn.Module, train_loader: DataLoader, zca = False,\
-                       show_progress = False, verbose = False) -> None:
-    model = model.cuda()
-    model.train()
+def initialize_layer_pca(layer, last_layers_output, verbose = False) -> None:
 
-    print("Checking that model supports PCA")
-    check_model_supports_pca(model)
+    initialize_pca_if_conv2d(layer, last_layers_output, zca = False, verbose = verbose)
+    initialize_pca_if_linear(layer, last_layers_output, zca = False, verbose = verbose)
 
-    print("Getting batch of all inputs")
-    last_layers_output = get_batch_of_all_inputs(train_loader, show_progress)
 
-    layers = tqdm.tqdm(model.layers) if show_progress else model.layers
+def initialize_layer_zca(layer, last_layers_output, verbose = False) -> None:
 
-    for layer in layers:
-        initialize_pca_if_conv2d(layer, last_layers_output, zca = zca, verbose = verbose)
-        initialize_pca_if_linear(layer, last_layers_output, zca = zca, verbose = verbose)
-        last_layers_output = put_all_batches_through_layer(layer, last_layers_output)
-        if torch.isnan(last_layers_output.mean()):
-            print("Error")
-        if torch.isnan(last_layers_output.var()):
-            print("Error")
+    initialize_pca_if_conv2d(layer, last_layers_output, zca = True, verbose = verbose)
+    initialize_pca_if_linear(layer, last_layers_output, zca = True, verbose = verbose)
 
-        if verbose:
-            with torch.no_grad():
-                var = s_ntorch.var(last_layers_output)
-                print(var)
+
+initialize_lsuv_pca = create_scaling_based_init(initialize_layer_pca, check_model_supports_pca)
+initialize_lsuv_zca = create_scaling_based_init(initialize_layer_zca, check_model_supports_pca)
+
+
+initialize_pca = create_layer_wise_init(initialize_layer_pca, check_model_supports_pca)
+initialize_zca = create_layer_wise_init(initialize_layer_zca, check_model_supports_pca)
 
 
 def initialize_pca_if_conv2d(layer, data_orig: torch.Tensor,
@@ -72,8 +73,6 @@ def initialize_pca_if_conv2d(layer, data_orig: torch.Tensor,
     with torch.no_grad():
         layer.weight[...] = weight
         layer.bias[...] = 0
-
-    iteratively_scale_and_rebias_conv_layer(layer, data_orig, verbose = verbose)
 
 
 def initialize_pca_if_linear(layer, data_orig: torch.Tensor,
@@ -107,9 +106,6 @@ def initialize_pca_if_linear(layer, data_orig: torch.Tensor,
         layer.weight[...] = weight
         layer.bias[...] = 0
 
-    iteratively_scale_and_rebias_linear_layer(layer, data_orig, verbose = verbose)
-
-
 
 def sorted_pcad_data(data):
     data = data.cpu()
@@ -132,9 +128,4 @@ def reshape_and_transpose_batches_for_conv_pca(batches):
 
     return data
 
-
-def check_model_supports_pca(model: nn.Module) -> None:
-    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Tanh, nn.Flatten, nn.BatchNorm2d, nn.AvgPool2d)
-    check_architecture_is_sequential(model)
-    check_all_layers_supported(model.layers, supported_layers)
 
