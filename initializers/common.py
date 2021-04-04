@@ -14,6 +14,7 @@ def create_layer_wise_init(layer_init_function, model_checker):
 
 def layer_wise_initialize(model: nn.Module, train_loader, layer_init_function,
                           show_progress = False, verbose = False, model_checker = None) -> None:
+
     model = model.cuda()
     model.train()
 
@@ -24,33 +25,41 @@ def layer_wise_initialize(model: nn.Module, train_loader, layer_init_function,
 
     last_layers_output = get_batch_of_all_inputs(train_loader, show_progress)
 
-    layers = tqdm.tqdm(model.layers) if show_progress else model.layers
+    layers = tqdm.tqdm(enumerate(model.layers)) if show_progress else enumerate(model.layers)
 
-    for layer in layers:
+    warn = True
+    for i, layer in layers:
         layer_init_function(layer, last_layers_output)
-        # iteratively_scale_and_rebias_linear_layer(layer, last_layers_output, verbose = verbose)
         last_layers_output = put_all_batches_through_layer(layer, last_layers_output)
 
-        warn_about_infs_and_nans(layer, last_layers_output)
-
+        if warn:
+            warn = not warn_about_infs_and_nans(layer, last_layers_output, i)
 
         if verbose:
             with torch.no_grad():
                 var = s_ntorch.var(last_layers_output)
                 print(var)
 
-def warn_about_infs_and_nans(layer, layer_output):
-    if torch.any(torch.isnan(layer_output)):
-        print("Warning: nans in output")
 
-    if torch.any(torch.isinf(layer_output)):
-        print("Warning: infs in output")
-
+def warn_about_infs_and_nans(layer, layer_output, i):
     for param in layer.parameters():
         if torch.any(torch.isnan(param)):
-            print("Warning: nans in output")
+            print(f"Warning: nans in params layer {i}")
+            return True
         if torch.any(torch.isinf(param)):
-            print("Warning: infs in output")
+            print(f"Warning: infs in params layer {i}")
+            return True
+
+    if torch.any(torch.isnan(layer_output)):
+        print(f"Warning: nans in output layer {i}")
+        return True
+
+    if torch.any(torch.isinf(layer_output)):
+        print(f"Warning: infs in output layer {i}")
+        return True
+
+    return False
+
 
 
 class ArchitectureNotSupportedException(Exception):
