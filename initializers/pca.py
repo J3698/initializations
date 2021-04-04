@@ -50,7 +50,7 @@ initialize_lsuv_kmeans = create_scaling_based_init(initialize_layer_kmeans, None
 
 initialize_pca = create_layer_wise_init(initialize_layer_pca, check_model_supports_pca)
 initialize_zca = create_layer_wise_init(initialize_layer_zca, check_model_supports_pca)
-initialize_kmeans = create_scaling_based_init(initialize_layer_kmeans, None)
+initialize_kmeans = create_layer_wise_init(initialize_layer_kmeans, None)
 
 
 def initialize_kmeans_if_conv2d(layer, last_layers_output, zca = True, verbose = False):
