@@ -12,7 +12,8 @@ import torchvision
 import torchvision.transforms as transforms
 import tqdm
 from cifar_dataloaders import create_CIFAR10_dataloaders
-from initializers.pca import initialize_pca
+from initializers.pca import initialize_pca,\
+                             initialize_lsuv_random_samples, initialize_random_samples 
 from initializers.basic import \
         initialize_he, initialize_orthogonal, \
         initialize_tanh_lecun_uniform, initialize_tanh_xavier_uniform
@@ -38,9 +39,23 @@ def main():
     writer = SummaryWriter()
 
     model_relu = VGG19BN(num_classes = 10)
-    initialize_he(model_relu)
-    test_init("He (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+    initialize_random_samples(model_relu, train_loader)
+    test_init("Random (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
 
+    model_relu = VGG19(num_classes = 10)
+    initialize_lsuv_random_samples(model_relu, train_loader)
+    test_init("Random (ReLU)", model_relu, train_loader, val_loader, writer)
+
+    model_tanh = VGG19BN(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_random_samples(model_tanh, train_loader)
+    test_init("Random (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_lsuv_random_samples(model_tanh, train_loader)
+    test_init("Random (Tanh)", model_tanh, train_loader, val_loader, writer)
+
+
+    """
     model_relu = VGG19BN(num_classes = 10)
     initialize_pca(model_relu, train_loader)
     test_init("PCA (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
@@ -69,6 +84,7 @@ def main():
 
     initialize_tanh_xavier_uniform(model_tanh)
     test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+    """
 
 
 

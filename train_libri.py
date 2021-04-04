@@ -37,45 +37,90 @@ def main():
 
     writer = SummaryWriter()
 
-    """
-    model_relu = VGG19(num_classes = 10)
-    vgg_initialize_he(model_relu)
-    test_init("He ReLU", model_relu, train_loader, val_loader, writer)
-    """
 
-    model_relu = VGG19(num_classes = 10)
-    vgg_initialize_pca(model_relu, train_loader)
+    model_relu = MLPBN(num_classes = 10)
+    initialize_random_samples(model_relu, train_loader)
+    test_init("Random (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+
+    model_relu = MLP(num_classes = 10)
+    initialize_lsuv_random_samples(model_relu, train_loader)
+    test_init("Random (ReLU)", model_relu, train_loader, val_loader, writer)
+
+    model_tanh = MLPBN(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_random_samples(model_tanh, train_loader)
+    test_init("Random (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_lsuv_random_samples(model_tanh, train_loader)
+    test_init("Random (Tanh)", model_tanh, train_loader, val_loader, writer)
+
+    model_relu = MLPBN(num_classes = 10)
+    initialize_pca(model_relu, train_loader)
+    test_init("PCA (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+
+    model_relu = MLPBN(num_classes = 10)
+    initialize_zca(model_relu, train_loader)
+    test_init("ZCA (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+
+    model_relu = MLPBN(num_classes = 10)
+    initialize_orthogonal(model_relu)
+    test_init("Orth (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+
+
+    model_tanh = MLPBN(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_pca(model_tanh, train_loader)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    initialize_zca(model_tanh, train_loader)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    initialize_tanh_lecun_uniform(model_tanh)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    initialize_orthogonal(model_tanh)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+    initialize_tanh_xavier_uniform(model_tanh)
+    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+
+
+    model_relu = MLP(num_classes = 10)
+    initialize_pca(model_relu, train_loader)
     test_init("PCA (ReLU)", model_relu, train_loader, val_loader, writer)
 
-    """
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_pca(model_tanh, train_loader)
+    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_pca(model_tanh, train_loader)
     test_init("PCA Tanh", model_relu, train_loader, val_loader, writer)
 
-    model_relu = VGG19(num_classes = 10)
-    vgg_initialize_pca(model_relu, train_loader)
+    model_relu = MLP(num_classes = 10)
+    initialize_pca(model_relu, train_loader)
     test_init("ZCA (ReLU)", model_relu, train_loader, val_loader, writer)
 
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_pca(model_tanh, train_loader)
+    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_pca(model_tanh, train_loader)
     test_init("ZCA Tanh", model_relu, train_loader, val_loader, writer)
 
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_tanh_lecun_uniform(model_tanh)
+    model_relu = MLP(num_classes = 10)
+    initialize_he(model_relu)
+    test_init("He ReLU", model_relu, train_loader, val_loader, writer)
+
+    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_tanh_lecun_uniform(model_tanh)
     test_init("LeCun Uniform Tanh", model_relu, train_loader, val_loader, writer)
 
-    model_relu = VGG19(num_classes = 10)
-    vgg_initialize_orthogonal(model_relu)
+    model_relu = MLP(num_classes = 10)
+    initialize_orthogonal(model_relu)
     test_init("Orthogonal (ReLU)", model_relu, train_loader, val_loader, writer)
 
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_orthogonal(model_tanh)
+    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_orthogonal(model_tanh)
     test_init("Orthogonal (Tanh)", model_relu, train_loader, val_loader, writer)
 
-    model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
-    vgg_initialize_tanh_xavier_uniform(model_tanh)
+    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_tanh_xavier_uniform(model_tanh)
     test_init("Xavier Tanh", model_relu, train_loader, val_loader, writer)
-    """
+
+
 
 
 def test_init(init_name, model, train_loader, val_loader, writer):

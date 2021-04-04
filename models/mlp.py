@@ -43,5 +43,24 @@ class MLP(nn.Module):
         print(x.shape)
         return self.layers(x)
 
+
+class MLPBN(nn.Module):
+    def __init__(self, num_classes, nonlinearity = nn.ReLU):
+        super().__init__()
+
+        layers = []
+        to_copy = MLP(num_classes, nonlinearity)
+        for layer in to_copy.layers:
+            layers.append(layer)
+            if isinstance(layer, nn.Linear):
+                layers.append(nn.BatchNorm1d(layer.out_features))
+        self.layers = nn.Sequential(*layers)
+
+
+    def forward(self, x):
+        out = self.layers(x)
+        return out
+
+
 if __name__ == "__main__":
     main()
