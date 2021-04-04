@@ -3,8 +3,7 @@ import torch.nn as nn
 from models.mlp import MLP
 from models.vgg import VGG19, VGG19BN
 
-from initializers.pca import initialize_pca, initialize_zca, \
-                             initialize_lsuv_random_samples, initialize_random_samples 
+from initializers.pca import *
 from initializers.basic import initialize_he, initialize_orthogonal, \
         initialize_tanh_lecun_uniform, initialize_tanh_xavier_uniform
 
@@ -60,6 +59,10 @@ def check_vgg_relu_inits_work(train_loader, val_loader):
     print("Inited pca relu")
     initialize_zca(model_relu, train_loader)
     print("Inited zca relu")
+    initialize_lsuv_kmeans(model_relu, train_loader, show_progress = True)
+    print("Inited kmeans")
+    initialize_lsuv_pca(model_relu, train_loader)
+    initialize_lsuv_zca(model_relu, train_loader)
     initialize_orthogonal(model_relu)
     print("Inited orth relu")
     initialize_lsuv_random_samples(model_relu, train_loader)
@@ -68,6 +71,7 @@ def check_vgg_relu_inits_work(train_loader, val_loader):
 
 def check_vgg_tanh_inits_work(train_loader, val_loader):
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_lsuv_kmeans(model_relu, train_loader, show_progress = True)
     initialize_pca(model_tanh, train_loader)
     print("Inited pca tanh")
     initialize_zca(model_tanh, train_loader)
@@ -84,6 +88,7 @@ def check_vgg_tanh_inits_work(train_loader, val_loader):
 
 def check_vgg_bn_inits_work(train_loader, val_loader):
     model_relu = VGG19BN(num_classes = 10)
+    initialize_kmeans(model_relu, train_loader)
     initialize_he(model_relu)
     print("Inited he relu")
     initialize_pca(model_relu, train_loader)
@@ -96,6 +101,7 @@ def check_vgg_bn_inits_work(train_loader, val_loader):
     print("Inited random relu")
 
     model_tanh = VGG19BN(num_classes = 10, nonlinearity = nn.Tanh)
+    initialize_kmeans(model_tanh, train_loader)
     initialize_pca(model_tanh, train_loader)
     print("Inited pca tanh (bn)")
     initialize_zca(model_tanh, train_loader)
