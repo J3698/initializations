@@ -19,7 +19,6 @@ def check_model_supports_pca(model: nn.Module) -> None:
     check_all_layers_supported(model.layers, supported_layers)
 
 
-
 def verbose_test():
     train_loader, _ = create_CIFAR10_dataloaders()
     model_tanh = VGG19(num_classes = 10, nonlinearity = nn.Tanh)
@@ -27,23 +26,66 @@ def verbose_test():
 
 
 def initialize_layer_pca(layer, last_layers_output, verbose = False) -> None:
-
     initialize_pca_if_conv2d(layer, last_layers_output, zca = False, verbose = verbose)
     initialize_pca_if_linear(layer, last_layers_output, zca = False, verbose = verbose)
 
 
 def initialize_layer_zca(layer, last_layers_output, verbose = False) -> None:
-
     initialize_pca_if_conv2d(layer, last_layers_output, zca = True, verbose = verbose)
     initialize_pca_if_linear(layer, last_layers_output, zca = True, verbose = verbose)
+
+
+def initialize_layer_data(layer, last_layers_output) -> None:
+    initialize_data_if_conv(layer, last_layers_output)
+    initialize_data_if_linear(layer, last_layers_output)
+
+
+def initialize_data_if_conv(layer, last_layers_output) -> None:
+    if not isinstance(layer, nn.Conv2d): return
+
+    with torch.no_grad():
+        layer.bias[...] = 0
+
+        batches, batch_size, feats, w, h = last_layers_output.shape
+        last_layers_output = last_layers_output.reshape(-1, feats, w, h)
+
+        nums_per_batch_item = last_layers_output[0].shape.numel()
+        nums_in_weight = layer.weight.shape.numel()
+        data_necessary = nums_in_weight // nums_per_batch_item + 1
+        indices = torch.randperm(len(last_layers_output))[:data_necessary]
+
+        weight_data = last_layers_output[indices].reshape(-1)[:nums_in_weight]
+        layer.weight[...] = weight_data.reshape(layer.weight.shape)
+
+
+def initialize_data_if_linear(layer, last_layers_output) -> None:
+    if not isinstance(layer, nn.Linear): return
+
+    with torch.no_grad():
+        layer.bias[...] = 0
+
+        batches, batch_size, feats, w, h = last_layers_output.shape
+        last_layers_output = last_layers_output.reshape(-1, feats, w, h)
+
+        nums_per_batch_item = last_layers_output[0].shape.numel()
+        nums_in_weight = layer.weight.shape.numel()
+        data_necessary = nums_in_weight // nums_per_batch_item + 1
+        indices = torch.randperm(len(last_layers_output))[:data_necessary]
+
+        weight_data = last_layers_output[indices].reshape(-1)[:nums_in_weight]
+        layer.weight[...] = weight_data.reshape(layer.weight.shape)
 
 
 initialize_lsuv_pca = create_scaling_based_init(initialize_layer_pca, check_model_supports_pca)
 initialize_lsuv_zca = create_scaling_based_init(initialize_layer_zca, check_model_supports_pca)
 
-
 initialize_pca = create_layer_wise_init(initialize_layer_pca, check_model_supports_pca)
 initialize_zca = create_layer_wise_init(initialize_layer_zca, check_model_supports_pca)
+
+initialize_lsuv_random_samples = create_scaling_based_init(initialize_layer_data, \
+                                                           check_architecture_is_sequential)
+initialize_random_samples = create_layer_wise_init(initialize_layer_data, \
+                                                   check_architecture_is_sequential)
 
 
 def initialize_pca_if_conv2d(layer, data_orig: torch.Tensor,
