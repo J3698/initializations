@@ -33,27 +33,28 @@ def main():
     train_loader, val_loader = create_CIFAR10_dataloaders(BATCH_SIZE)
 
     # print("Running each init as a test")
-    check_all_vgg_inits_work(train_loader, val_loader)
+    #check_all_vgg_inits_work(train_loader, val_loader)
 
     writer = SummaryWriter()
 
-    model_relu = VGG19BN(num_classes = 10)
-    initialize_he(model_relu)
-    test_init("He (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+    #model_relu = VGG19(num_classes = 10)
+    #initialize_lsuv_kmeans(model_relu, train_loader)
+    #test_init("KMeans (ReLU)", model_relu, train_loader, val_loader, writer)
 
     model_relu = VGG19BN(num_classes = 10)
-    initialize_pca(model_relu, train_loader)
-    test_init("PCA (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+    initialize_kmeans(model_relu, train_loader)
+    test_init("KMeans (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
 
-    model_relu = VGG19BN(num_classes = 10)
-    initialize_zca(model_relu, train_loader)
-    test_init("ZCA (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+    model_tanh = VGG19(num_classes = 10)
+    initialize_lsuv_kmeans(model_tanh, train_loader)
+    test_init("KMeans (Tanh)", model_tanh, train_loader, val_loader, writer)
 
-    model_relu = VGG19BN(num_classes = 10)
-    initialize_orthogonal(model_relu)
-    test_init("Orth (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+    model_tanh = VGG19BN(num_classes = 10)
+    initialize_kmeans(model_tanh, train_loader)
+    test_init("KMeans (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
 
 
+    """
     model_tanh = VGG19BN(num_classes = 10, nonlinearity = nn.Tanh)
     initialize_pca(model_tanh, train_loader)
     test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
@@ -69,6 +70,7 @@ def main():
 
     initialize_tanh_xavier_uniform(model_tanh)
     test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
+    """
 
 
 
