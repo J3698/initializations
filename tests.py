@@ -9,14 +9,23 @@ from initializers.basic import initialize_he, initialize_orthogonal, \
 
 from util.signal_propagation_plots import signal_propagation_plot
 
+import init_info
 
+def check_all_inits_work(train_loader, val_loader):
+    for init, info in init_info.init_types.items():
+        for nonlinearity in init_info.nonlinearity_types:
+            if "include_nonlinearities" in info and\
+               nonlinearity not in info["include_nonlinearities"]:
+                break
 
-def check_all_mlp_inits_work(train_loader, val_loader):
-    check_mlp_relu_inits_work(train_loader, val_loader)
-    check_mlp_tanh_inits_work(train_loader, val_loader)
+            for model_type in init_info.model_types:
+                print(f"Testing {init.__name__} init on model "
+                      f"{model_type.__name__} with "
+                      f"nonlinearity {nonlinearity.__name__}")
 
-
-
+                model = model_type(nonlinearity = nonlinearity)
+                init(model, train_loader)
+    print("Finished testing")
 
 def check_mlp_relu_inits_work(train_loader, val_loader):
     model_relu = MLP(num_classes = 346)

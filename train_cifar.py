@@ -18,7 +18,7 @@ from initializers.basic import \
         initialize_tanh_lecun_uniform, initialize_tanh_xavier_uniform
 from util.signal_propagation_plots import signal_propagation_plot, SignalPropagationPlotter
 from models.vgg import VGG19, VGG19BN
-from tests import check_all_vgg_inits_work
+from tests import check_all_inits_work
 
 cuda = torch.cuda.is_available()
 NUM_WORKERS = os.cpu_count() if cuda else 0
@@ -32,8 +32,8 @@ def main():
     print("Creating data loaders")
     train_loader, val_loader = create_CIFAR10_dataloaders(BATCH_SIZE)
 
-    # print("Running each init as a test")
-    #check_all_vgg_inits_work(train_loader, val_loader)
+    check_all_inits_work(train_loader, val_loader)
+    raise 1
 
     writer = SummaryWriter()
 
@@ -58,7 +58,6 @@ def main():
     test_init("Random (Tanh)", model_tanh, train_loader, val_loader, writer)
 
 
-    """
     model_relu = VGG19BN(num_classes = 10)
     initialize_kmeans(model_relu, train_loader)
     test_init("KMeans (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
