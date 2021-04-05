@@ -18,24 +18,24 @@ def main():
 
 
 class MLP(nn.Module):
-    def __init__(self, num_classes = 346, context = 15):
+    def __init__(self, num_classes = 346, context = 15, nonlinearity = nn.ReLU):
         super().__init__()
 
         self.in_feats = (2 * context + 1) * 13
 
         self.layers = nn.Sequential(
             nn.Linear(self.in_feats, 2048),
-            nn.ReLU(),
+            nonlinearity(),
             nn.Linear(2048, 2048),
-            nn.ReLU(),
+            nonlinearity(),
             nn.Linear(2048, 1024),
-            nn.ReLU(),
+            nonlinearity(),
             nn.Linear(1024, 1024),
-            nn.ReLU(),
+            nonlinearity(),
             nn.Linear(1024, 512),
-            nn.ReLU(),
+            nonlinearity(),
             nn.Linear(512, 512),
-            nn.ReLU(),
+            nonlinearity(),
             nn.Linear(512, num_classes)
         )
 
@@ -45,11 +45,11 @@ class MLP(nn.Module):
 
 
 class MLPBN(nn.Module):
-    def __init__(self, num_classes, nonlinearity = nn.ReLU):
+    def __init__(self, num_classes = 10, context = 15, nonlinearity = nn.ReLU):
         super().__init__()
 
         layers = []
-        to_copy = MLP(num_classes, nonlinearity)
+        to_copy = MLP(num_classes, context, nonlinearity)
         for layer in to_copy.layers:
             layers.append(layer)
             if isinstance(layer, nn.Linear):

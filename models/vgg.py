@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class VGG19(nn.Module):
-    def __init__(self, num_classes, nonlinearity = nn.ReLU):
+    def __init__(self, num_classes = 10, nonlinearity = nn.ReLU):
         super().__init__()
 
         self.layers = nn.Sequential(
@@ -42,7 +42,7 @@ class VGG19(nn.Module):
 
 
 class VGG19BN(nn.Module):
-    def __init__(self, num_classes, nonlinearity = nn.ReLU):
+    def __init__(self, num_classes = 10, nonlinearity = nn.ReLU):
         super().__init__()
 
         layers = []
