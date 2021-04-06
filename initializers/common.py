@@ -38,7 +38,7 @@ def layer_wise_initialize(model: nn.Module, train_loader, layer_init_function,
         if verbose:
             with torch.no_grad():
                 var = s_ntorch.var(last_layers_output)
-                print(var)
+                # print(var)
 
 
 def warn_about_infs_and_nans(layer, layer_output, i):
@@ -98,7 +98,7 @@ def get_first_batch_inputs(train_loader):
 def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> torch.Tensor:
     torch.multiprocessing.set_sharing_strategy('file_system')
 
-    max_items = len(train_loader) // 20
+    max_items = len(train_loader) // 40
     train_loader = islice(train_loader, 0, max_items)
     if show_progress:
         train_loader = tqdm.tqdm(train_loader, total = max_items)
@@ -107,7 +107,8 @@ def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> 
     # print(f"item: {next(iter(train_loader))[0].shape}, len: {max_items}")
     loader = enumerate(train_loader)
     data = [x[None, ...] for i, (x, y) in loader]
-    return torch.cat(data, dim =  0).cuda()
+    out = torch.cat(data, dim =  0).cuda()
+    return out
 
 
 def calc_channel_means_and_vars(layer, batches):
@@ -124,8 +125,8 @@ def calc_channel_means_and_vars(layer, batches):
 def calc_neuron_means_and_vars(layer, batches):
     out = put_all_batches_through_layer(layer, batches)
     as_one_batch = batches_to_one_batch(out)
-    neuron_means = tensor.mean(0)
-    variance_per_neuron = tensor.var(0)
+    neuron_means = as_one_batch.mean(0)
+    variance_per_neuron = as_one_batch.var(0)
 
     assert neuron_means.shape == (layer.out_features,)
     assert variance_per_neuron.shape == (layer.out_features,)

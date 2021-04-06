@@ -56,6 +56,8 @@ def iteratively_scale_and_rebias_linear_layer(layer, batches, max_iters = 5,
     """
 
     neuron_means, neuron_vars = calc_neuron_means_and_vars(layer, batches)
+    avg_squared_mean = (neuron_means ** 2).mean()
+    avg_var = neuron_vars.mean()
 
     max_iters_left = max_iters
 
@@ -63,15 +65,14 @@ def iteratively_scale_and_rebias_linear_layer(layer, batches, max_iters = 5,
         scale_and_rebias_linear_layer(layer, neuron_means, neuron_vars)
 
         neuron_means, neuron_vars = calc_neuron_means_and_vars(layer, batches)
+        avg_squared_mean = (neuron_means ** 2).mean()
+        avg_var = neuron_vars.mean()
 
         max_iters_left -= 1
 
         if verbose:
             print(f"avg squared mean: {avg_squared_mean}")
             print(f"avg var: {avg_var}")
-
-    print(neuron_means, neuron_vars)
-    return
 
 
 def iteratively_scale_and_rebias_conv_layer(layer, batches, max_iters = 5,
@@ -130,5 +131,6 @@ def scale_and_rebias_linear_layer(layer, neuron_means, neuron_vars):
     """
 
     with torch.no_grad():
-        layer.weight /= channel_vars[:, None, None, None] ** 0.5
-        layer.bias -= channel_means
+        neuron_vars[neuron_vars == 0] = 1
+        layer.weight /= neuron_vars[:, None] ** 0.5
+        layer.bias -= neuron_means
