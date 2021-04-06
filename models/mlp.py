@@ -22,6 +22,7 @@ class MLP(nn.Module):
         super().__init__()
 
         self.in_feats = (2 * context + 1) * 13
+        print(self.in_feats)
 
         self.layers = nn.Sequential(
             nn.Linear(self.in_feats, 2048),
@@ -40,12 +41,11 @@ class MLP(nn.Module):
         )
 
     def forward(self, x):
-        print(x.shape)
         return self.layers(x)
 
 
 class MLPBN(nn.Module):
-    def __init__(self, num_classes = 10, context = 15, nonlinearity = nn.ReLU):
+    def __init__(self, num_classes = 346, context = 15, nonlinearity = nn.ReLU):
         super().__init__()
 
         layers = []

@@ -15,7 +15,7 @@ AFFINE_TYPES = (nn.Linear, nn.Conv2d)
 
 
 def check_model_supports_pca(model: nn.Module) -> None:
-    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Tanh, nn.Flatten, nn.BatchNorm2d, nn.AvgPool2d)
+    supported_layers = (nn.Linear, nn.Conv2d, nn.ReLU, nn.Tanh, nn.Flatten, nn.BatchNorm2d, nn.AvgPool2d, nn.Module)
     check_architecture_is_sequential(model)
     check_all_layers_supported(model.layers, supported_layers)
 
@@ -82,12 +82,18 @@ def initialize_data_if_linear(layer, last_layers_output) -> None:
 
 
 initialize_lsuv_pca = create_scaling_based_init(initialize_layer_pca, check_model_supports_pca)
+initialize_lsuv_pca.__name__ = "initialize_lsuv_pca"
 initialize_lsuv_zca = create_scaling_based_init(initialize_layer_zca, check_model_supports_pca)
+initialize_lsuv_zca.__name__ = "initialize_lsuv_zca"
 initialize_lsuv_kmeans = create_scaling_based_init(initialize_layer_kmeans, None)
+initialize_lsuv_kmeans.__name__ = "initialize_lsuv_kmeans"
 
 initialize_pca = create_layer_wise_init(initialize_layer_pca, check_model_supports_pca)
+initialize_pca.__name__ = "initialize_pca"
 initialize_zca = create_layer_wise_init(initialize_layer_zca, check_model_supports_pca)
+initialize_zca.__name__ = "initialize_zca"
 initialize_kmeans = create_layer_wise_init(initialize_layer_kmeans, None)
+initialize_kmeans.__name__ = "initialize_kmeans"
 
 
 def initialize_kmeans_if_conv2d(layer, last_layers_output, zca = True, verbose = False):
@@ -112,7 +118,7 @@ def initialize_kmeans_if_linear(layer, last_layers_output, zca = True, verbose =
     data = batches_to_one_batch(last_layers_output)
     b, f  = data.shape
     necessary = layer.weight.shape.numel() // data.shape[1] + 1
-    km = KMeans(necessary).fit(data)
+    km = KMeans(necessary).fit(data.cpu().detach().numpy()).cluster_centers_
     weight = km.reshape(-1)[:layer.weight.shape.numel()]
 
     with torch.no_grad():
@@ -121,8 +127,10 @@ def initialize_kmeans_if_linear(layer, last_layers_output, zca = True, verbose =
 
 initialize_lsuv_random_samples = create_scaling_based_init(initialize_layer_data, \
                                                            check_architecture_is_sequential)
+initialize_lsuv_random_samples.__name__ = "initialize_lsuv_random_samples"
 initialize_random_samples = create_layer_wise_init(initialize_layer_data, \
                                                    check_architecture_is_sequential)
+initialize_random_samples.__name__ = "initialize_random_samples "
 
 
 def initialize_pca_if_conv2d(layer, data_orig: torch.Tensor,
