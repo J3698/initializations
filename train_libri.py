@@ -15,9 +15,10 @@ from librispeech_dataloaders import create_librispeech_dataloaders
 from initializers.pca import initialize_pca
 from initializers.basic import initialize_he, initialize_orthogonal, \
         initialize_tanh_lecun_uniform, initialize_tanh_xavier_uniform
-from util.signal_propagation_plots import signal_propagation_plot, create_all_SPPs, SignalPropagationPlotter
-from models.mlp import MLP
-from tests import check_all_mlp_inits_work
+from models.mlp import MLP, MLPBN
+from tests import check_all_inits_work
+from util.signal_propagation_plots import signal_propagation_plot, SignalPropagationPlotter
+import init_info
 
 
 cuda = torch.cuda.is_available()
@@ -25,7 +26,7 @@ NUM_WORKERS = os.cpu_count() if cuda else 0
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"num_workers: {NUM_WORKERS}, device: {DEVICE}")
 
-BATCH_SIZE = 64 if cuda else 1
+BATCH_SIZE = 4096 if cuda else 1
 NUM_EPOCHS = 50
 
 def main():
@@ -33,98 +34,31 @@ def main():
     train_loader, val_loader = create_librispeech_dataloaders(15, BATCH_SIZE)
 
     print("Generating MLP SPPs for each init")
-    check_all_mlp_inits_work(train_loader, val_loader)
-
+    #check_all_inits_work(train_loader, val_loader, models)
     writer = SummaryWriter()
+    test_all_inits(train_loader, val_loader, [MLP, MLPBN], writer)
 
 
-    model_relu = MLPBN(num_classes = 10)
-    initialize_random_samples(model_relu, train_loader)
-    test_init("Random (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
+def test_all_inits(train_loader, val_loader, models, writer):
+    for init, info in init_info.init_types.items():
+        for nonlinearity in init_info.nonlinearity_types:
+            if "include_nonlinearities" in info and\
+               nonlinearity not in info["include_nonlinearities"]:
+                break
 
-    model_relu = MLP(num_classes = 10)
-    initialize_lsuv_random_samples(model_relu, train_loader)
-    test_init("Random (ReLU)", model_relu, train_loader, val_loader, writer)
+            for model_type in models:
+                test_name = f"{init.__name__}-{model_type.__name__}-" + \
+                            f"{nonlinearity.__name__}"
 
-    model_tanh = MLPBN(num_classes = 10, nonlinearity = nn.Tanh)
-    initialize_random_samples(model_tanh, train_loader)
-    test_init("Random (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
-
-    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
-    initialize_lsuv_random_samples(model_tanh, train_loader)
-    test_init("Random (Tanh)", model_tanh, train_loader, val_loader, writer)
-
-    model_relu = MLPBN(num_classes = 10)
-    initialize_pca(model_relu, train_loader)
-    test_init("PCA (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
-
-    model_relu = MLPBN(num_classes = 10)
-    initialize_zca(model_relu, train_loader)
-    test_init("ZCA (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
-
-    model_relu = MLPBN(num_classes = 10)
-    initialize_orthogonal(model_relu)
-    test_init("Orth (ReLU) (BN)", model_relu, train_loader, val_loader, writer)
-
-
-    model_tanh = MLPBN(num_classes = 10, nonlinearity = nn.Tanh)
-    initialize_pca(model_tanh, train_loader)
-    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
-
-    initialize_zca(model_tanh, train_loader)
-    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
-
-    initialize_tanh_lecun_uniform(model_tanh)
-    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
-
-    initialize_orthogonal(model_tanh)
-    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
-
-    initialize_tanh_xavier_uniform(model_tanh)
-    test_init("PCA (Tanh) (BN)", model_tanh, train_loader, val_loader, writer)
-
-
-    model_relu = MLP(num_classes = 10)
-    initialize_pca(model_relu, train_loader)
-    test_init("PCA (ReLU)", model_relu, train_loader, val_loader, writer)
-
-    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
-    initialize_pca(model_tanh, train_loader)
-    test_init("PCA Tanh", model_relu, train_loader, val_loader, writer)
-
-    model_relu = MLP(num_classes = 10)
-    initialize_pca(model_relu, train_loader)
-    test_init("ZCA (ReLU)", model_relu, train_loader, val_loader, writer)
-
-    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
-    initialize_pca(model_tanh, train_loader)
-    test_init("ZCA Tanh", model_relu, train_loader, val_loader, writer)
-
-    model_relu = MLP(num_classes = 10)
-    initialize_he(model_relu)
-    test_init("He ReLU", model_relu, train_loader, val_loader, writer)
-
-    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
-    initialize_tanh_lecun_uniform(model_tanh)
-    test_init("LeCun Uniform Tanh", model_relu, train_loader, val_loader, writer)
-
-    model_relu = MLP(num_classes = 10)
-    initialize_orthogonal(model_relu)
-    test_init("Orthogonal (ReLU)", model_relu, train_loader, val_loader, writer)
-
-    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
-    initialize_orthogonal(model_tanh)
-    test_init("Orthogonal (Tanh)", model_relu, train_loader, val_loader, writer)
-
-    model_tanh = MLP(num_classes = 10, nonlinearity = nn.Tanh)
-    initialize_tanh_xavier_uniform(model_tanh)
-    test_init("Xavier Tanh", model_relu, train_loader, val_loader, writer)
+                model = model_type(nonlinearity = nonlinearity)
+                init(model, train_loader)
+                test_init(test_name, model, train_loader, val_loader, writer)
 
 
 
 
 def test_init(init_name, model, train_loader, val_loader, writer):
-    print(f"Testing intit: {init_name}")
+    print(f"Testing init: {init_name}")
 
     model.to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr = 1e-4)
