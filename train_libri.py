@@ -34,9 +34,10 @@ def main():
     train_loader, val_loader = create_librispeech_dataloaders(15, BATCH_SIZE)
 
     print("Generating MLP SPPs for each init")
-    #check_all_inits_work(train_loader, val_loader, models)
-    writer = SummaryWriter()
-    test_all_inits(train_loader, val_loader, [MLP, MLPBN], writer)
+    models = [MLP]
+    check_all_inits_work(train_loader, val_loader, models)
+    # writer = SummaryWriter()
+    # test_all_inits(train_loader, val_loader, models, writer)
 
 
 def test_all_inits(train_loader, val_loader, models, writer):
@@ -51,7 +52,7 @@ def test_all_inits(train_loader, val_loader, models, writer):
                             f"{nonlinearity.__name__}"
 
                 model = model_type(nonlinearity = nonlinearity)
-                init(model, train_loader)
+                init(model, train_loader, show_progress = True)
                 test_init(test_name, model, train_loader, val_loader, writer)
 
 
@@ -76,8 +77,6 @@ def test_init(init_name, model, train_loader, val_loader, writer):
         writer.add_scalar(f'{init_name}/Loss/validate', val_loss, epoch)
         writer.add_scalar(f'{init_name}/Accuracy/validate', val_accuracy, epoch)
         print(f"stats: {train_loss:.2f}, {100 * train_accuracy:.2f}%, {val_loss:.2f}, {100 * val_accuracy:.2f}%")
-# misc-reading-group@cs.cmu.edu
-#
 
 
 def train_epoch(model, optimizer, criterion, train_loader, epoch, init_name):

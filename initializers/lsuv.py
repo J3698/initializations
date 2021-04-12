@@ -12,33 +12,6 @@ def create_scaling_based_init(layer_init_function, model_checker):
 
 lsuv = create_scaling_based_init(lambda x, y: None, None)
 
-"""
-def scaling_based_initialize(model: nn.Module, dataloader, layer_init_function,
-                             show_progress = False, verbose = False, model_checker = None) -> None:
-    model = model.cuda()
-    model.train()
-
-    print("Checking that model is valid with this init")
-    if model_checker is None:
-        check_architecture_is_sequential(model)
-    else:
-        model_checker(model)
-
-    print("Getting batch of all inputs")
-    last_layers_output = get_batch_of_all_inputs(train_loader, show_progress)
-
-    layers = tqdm.tqdm(model.layers) if show_progress else model.layers
-
-    for layer in layers:
-        layer_init_function(layer, last_layers_output)
-        iteratively_scale_and_rebias_linear_layer(layer, last_layers_output, verbose = verbose)
-        last_layers_output = put_all_batches_through_layer(layer, last_layers_output)
-
-        if verbose:
-            with torch.no_grad():
-                var = s_ntorch.var(last_layers_output)
-                print(var)
-"""
 
 def iteratively_scale_and_rebias_layer(layer, batches, max_iters = 5, verbose = False):
     if isinstance(layer, nn.Conv2d):

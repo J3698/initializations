@@ -33,10 +33,11 @@ def main():
     print("Creating data loaders")
     train_loader, val_loader = create_CIFAR10_dataloaders(BATCH_SIZE)
 
-    check_all_inits_work(train_loader, val_loader, [VGG19, VGG19BN])
+    models = [VGG19]
+    check_all_inits_work(train_loader, val_loader, models)
 
-    writer = SummaryWriter()
-    test_all_inits(train_loader, val_loader, [VGG19, VGG19BN], writer)
+    # writer = SummaryWriter()
+    # test_all_inits(train_loader, val_loader, [VGG19, VGG19BN], writer)
 
 
 def test_all_inits(train_loader, val_loader, models, writer):

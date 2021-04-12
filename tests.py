@@ -25,6 +25,6 @@ def check_all_inits_work(train_loader, val_loader, models):
                       f"nonlinearity {nonlinearity.__name__}")
 
                 model = model_type(nonlinearity = nonlinearity)
-                init(model, train_loader)
+                init(model, train_loader, show_progress = True)
     print("Finished testing")
 

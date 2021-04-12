@@ -19,14 +19,14 @@ init_types = {\
     initialize_orthogonal: {},
     initialize_lsuv_pca: {},
     initialize_lsuv_zca: {},
+    initialize_pca: {},
     initialize_lsuv_kmeans: {},
     initialize_lsuv_random_samples: {},
     initialize_random_samples: {},
-    initialize_pca: {},
     initialize_zca: {},
     initialize_kmeans: {},
 }
 
 model_types = [MLP, MLPBN, VGG19, VGG19BN]
 
-nonlinearity_types = [nn.ReLU, nn.Tanh]
+nonlinearity_types = [nn.ReLU] #, nn.Tanh]

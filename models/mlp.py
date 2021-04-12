@@ -22,7 +22,6 @@ class MLP(nn.Module):
         super().__init__()
 
         self.in_feats = (2 * context + 1) * 13
-        print(self.in_feats)
 
         self.layers = nn.Sequential(
             nn.Linear(self.in_feats, 2048),

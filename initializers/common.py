@@ -12,6 +12,7 @@ def create_layer_wise_init(layer_init_function, model_checker):
     initializer = partial(layer_wise_initialize, **kwargs)
     return initializer
 
+
 def layer_wise_initialize(model: nn.Module, train_loader, layer_init_function,
                           show_progress = False, verbose = False, model_checker = None) -> None:
 
@@ -25,7 +26,8 @@ def layer_wise_initialize(model: nn.Module, train_loader, layer_init_function,
 
     last_layers_output = get_batch_of_all_inputs(train_loader, show_progress)
 
-    layers = tqdm.tqdm(enumerate(model.layers)) if show_progress else enumerate(model.layers)
+    layers = tqdm.tqdm(enumerate(model.layers), total = len(model.layers)) \
+                if show_progress else enumerate(model.layers)
 
     warn = True
     for i, layer in layers:
@@ -34,11 +36,6 @@ def layer_wise_initialize(model: nn.Module, train_loader, layer_init_function,
 
         if warn:
             warn = not warn_about_infs_and_nans(layer, last_layers_output, i)
-
-        if verbose:
-            with torch.no_grad():
-                var = s_ntorch.var(last_layers_output)
-                # print(var)
 
 
 def warn_about_infs_and_nans(layer, layer_output, i):
@@ -59,7 +56,6 @@ def warn_about_infs_and_nans(layer, layer_output, i):
         return True
 
     return False
-
 
 
 class ArchitectureNotSupportedException(Exception):
@@ -96,6 +92,12 @@ def get_first_batch_inputs(train_loader):
 
 
 def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> torch.Tensor:
+    """
+    Input: trainloader of tensors with shape (batch_size, *)
+    Output: tensor with shape (len(trainloader), batch_size, *)
+    """
+    input_shape = next(iter(train_loader))[0].shape
+
     torch.multiprocessing.set_sharing_strategy('file_system')
 
     max_items = len(train_loader) // 40
@@ -103,15 +105,19 @@ def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> 
     if show_progress:
         train_loader = tqdm.tqdm(train_loader, total = max_items)
 
-
     # print(f"item: {next(iter(train_loader))[0].shape}, len: {max_items}")
     loader = enumerate(train_loader)
     data = [x[None, ...] for i, (x, y) in loader]
     out = torch.cat(data, dim =  0).cuda()
+
+    assert out.shape[1:] == input_shape, (out.shape, input_shape)
     return out
 
 
 def calc_channel_means_and_vars(layer, batches):
+    assert isinstance(layer, nn.Conv2d)
+    assert len(batches.shape) == 5   # num_batches, batch_size, channels, width, height
+
     out = put_all_batches_through_layer(layer, batches)
     as_one_batch = batches_to_one_batch(out)
 
@@ -123,6 +129,9 @@ def calc_channel_means_and_vars(layer, batches):
     return channel_means, channel_vars
 
 def calc_neuron_means_and_vars(layer, batches):
+    assert isinstance(layer, nn.Linear)
+    assert len(batches.shape) == 3 # num_batches, batch_size, features
+
     out = put_all_batches_through_layer(layer, batches)
     as_one_batch = batches_to_one_batch(out)
     neuron_means = as_one_batch.mean(0)
@@ -134,12 +143,12 @@ def calc_neuron_means_and_vars(layer, batches):
     return neuron_means, variance_per_neuron
 
 
-
 def calc_avg_squared_mean_and_avg_var(channel_means, channel_vars):
     avg_squared_mean = (channel_means ** 2).mean()
     avg_var = channel_vars.mean()
 
     return avg_squared_mean, avg_var
+
 
 def means_per_channel(data):
     data = data.transpose(0, 1)
@@ -151,13 +160,13 @@ def means_per_channel(data):
 def mean_vars_per_channeel(data):
     var_per_channel_and_instance = torch.var(data, dim = 2)
     avg_var_per_channel = var_per_channel_and_instance.mean(dim = 0)
+
     return avg_var_per_channel
 
 
 def batches_to_one_batch(batches):
     total_instances = batches.shape[0] * batches.shape[1]
     new_shape = (total_instances,) + batches.shape[2:]
-
     return batches.reshape(new_shape)
 
 
@@ -167,6 +176,7 @@ def flatten_spatial_dims(batch):
 
 
 def put_all_batches_through_layer(layer, batches):
+    assert len(batches.shape) > 2, "Not enough dimensions!"
     num_batches, batch_size = batches.shape[0:2]
     non_batch_dims = batches.shape[2:]
 
@@ -181,3 +191,44 @@ def put_all_batches_through_layer(layer, batches):
     del batches
 
     return catted
+
+
+def get_random_conv_inputs(last_layers_output, layer, number):
+    batches, batch_size, channels, h, w = last_layers_output.shape
+    last_layers_output = last_layers_output.reshape(batches * batch_size, channels, h, w)
+    _, _, kh, kw = layer.weight.shape
+
+    if h - layer.kernel_size[0] + 1 == 0:
+        import pdb
+        pdb.set_trace()
+
+    oversample = 5
+    rs = torch.randint(h - layer.kernel_size[0] + 1, (number,))
+    cs = torch.randint(w - layer.kernel_size[1] + 1, (number,))
+    batch_item = torch.randint(batches * batch_size, (number,))
+
+    data = []
+    for b, r, c, o in zip(batch_item, rs, cs, range(number)):
+        datum = last_layers_output[b, :, r: r + kh, c: c + kw]
+        assert datum.shape == layer.weight[0].shape, (weight.shape, layer.weight[0].shape)
+        data.append(datum.reshape(-1))
+
+    data = torch.stack(data, dim = 0)
+    assert data.shape == (number, channels * kh * kw)
+
+    return data
+
+
+def get_random_linear_inputs(last_layers_output, layer, number):
+    num_batches, batch_size, feats = last_layers_output.shape
+
+    last_layers_output = last_layers_output.reshape(-1, feats)
+    assert last_layers_output.shape == (num_batches * batch_size, feats)
+
+    total_inputs = last_layers_output.shape[0]
+    inputs_to_take = torch.randperm(total_inputs)[:number]
+    new_weight = last_layers_output[inputs_to_take]
+    assert new_weight.shape == (number, feats), (new_weight.shape, (number, feats))
+
+    return new_weight
+

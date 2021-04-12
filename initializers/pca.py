@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 import tqdm
 from math import ceil
 from models.vgg import VGG19
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 from cifar_dataloaders import create_CIFAR10_dataloaders
 
 
@@ -36,8 +36,8 @@ def initialize_layer_zca(layer, last_layers_output, verbose = False) -> None:
     initialize_pca_if_linear(layer, last_layers_output, zca = True, verbose = verbose)
 
 def initialize_layer_kmeans(layer, last_layers_output, verbose = False) -> None:
-    initialize_kmeans_if_conv2d(layer, last_layers_output, zca = True, verbose = verbose)
-    initialize_kmeans_if_linear(layer, last_layers_output, zca = True, verbose = verbose)
+    initialize_kmeans_if_conv2d(layer, last_layers_output, verbose = verbose)
+    initialize_kmeans_if_linear(layer, last_layers_output, verbose = verbose)
 
 
 def initialize_layer_data(layer, last_layers_output) -> None:
@@ -45,166 +45,223 @@ def initialize_layer_data(layer, last_layers_output) -> None:
     initialize_data_if_linear(layer, last_layers_output)
 
 
-def initialize_data_if_conv(layer, last_layers_output) -> None:
-    if not isinstance(layer, nn.Conv2d): return
-
-    with torch.no_grad():
-        layer.bias[...] = 0
-
-        batches, batch_size, feats, w, h = last_layers_output.shape
-        last_layers_output = last_layers_output.reshape(-1, feats, w, h)
-
-        nums_per_batch_item = last_layers_output[0].shape.numel()
-        nums_in_weight = layer.weight.shape.numel()
-        data_necessary = nums_in_weight // nums_per_batch_item + 1
-        indices = torch.randperm(len(last_layers_output))[:data_necessary]
-
-        weight_data = last_layers_output[indices].reshape(-1)[:nums_in_weight]
-        layer.weight[...] = weight_data.reshape(layer.weight.shape)
-
-
 def initialize_data_if_linear(layer, last_layers_output) -> None:
     if not isinstance(layer, nn.Linear): return
+    assert len(last_layers_output.shape) == 3, "linear data should have shape (batches, batch_size, feats)"
+    batches, batch_size, feats = last_layers_output.shape
+    assert feats == layer.in_features, "data and layer don't match"
 
     with torch.no_grad():
         layer.bias[...] = 0
 
-        batches, batch_size, feats, w, h = last_layers_output.shape
-        last_layers_output = last_layers_output.reshape(-1, feats, w, h)
+        last_layers_output = last_layers_output.reshape(-1, feats)
+        assert last_layers_output.shape == (batches * batch_size, feats)
 
-        nums_per_batch_item = last_layers_output[0].shape.numel()
-        nums_in_weight = layer.weight.shape.numel()
-        data_necessary = nums_in_weight // nums_per_batch_item + 1
-        indices = torch.randperm(len(last_layers_output))[:data_necessary]
+        total_inputs = last_layers_output.shape[0]
+        inputs_to_take = torch.randperm(total_inputs)[:layer.out_features]
+        new_weight = last_layers_output[inputs_to_take]
+        assert new_weight.shape == layer.weight.shape
 
-        weight_data = last_layers_output[indices].reshape(-1)[:nums_in_weight]
-        layer.weight[...] = weight_data.reshape(layer.weight.shape)
+        layer.weight[...] = new_weight
 
 
+def initialize_kmeans_if_linear(layer, last_layers_output, verbose = False):
+    if not isinstance(layer, nn.Linear): return
+    assert len(last_layers_output.shape) == 3, "linear data should have shape (batches, batch_size, feats)"
+    batches, batch_size, feats = last_layers_output.shape
+    assert feats == layer.in_features, "data and layer don't match"
+
+    data = batches_to_one_batch(last_layers_output)
+    assert data.shape == (batches * batch_size, feats)
+    necessary_centers = layer.out_features
+
+    print((necessary_centers * 5, len(data)))
+    data_prepared = data.cpu().detach().numpy()[:max(necessary_centers * 10, len(data))]
+    kmeans = MiniBatchKMeans(necessary_centers, n_init = 2, init_size = 2 * necessary_centers)
+    new_weight = kmeans.fit(data_prepared).cluster_centers_
+    assert new_weight.shape == layer.weight.shape
+
+    with torch.no_grad():
+        layer.weight[...] = torch.from_numpy(new_weight).cuda()
+        layer.bias[...] = 0
+
+
+def initialize_pca_if_linear(layer, last_layers_output: torch.Tensor, zca = False, verbose = False) -> None:
+    if not isinstance(layer, nn.Linear): return
+    assert len(last_layers_output.shape) == 3, "linear data should have shape (batches, batch_size, feats)"
+    batches, batch_size, feats = last_layers_output.shape
+    assert feats == layer.in_features, "data and layer don't match"
+
+    with torch.no_grad():
+        data = last_layers_output.reshape(-1, feats)
+        s, V = sorted_pcad_data(data, data.shape[1] * 10)
+        assert V.shape == (feats, feats)
+
+        if len(V) >= layer.out_features:
+            weight = V[-layer.out_features:]
+            assert weight.shape == layer.weight.shape, (weight.shape, layer.weight.shape)
+        else:
+            more_needed = (layer.out_features - len(V),)
+            to_add = torch.randint(len(V), size = more_needed)
+            weight = torch.cat((V[to_add], V), dim = 0)
+            assert weight.shape == layer.weight.shape, (weight.shape, layer.weight.shape)
+
+        weight = weight.cuda()
+        layer.weight[...] = weight
+        layer.bias[...] = 0
+
+
+def initialize_data_if_conv(layer, last_layers_output) -> None:
+    if not isinstance(layer, nn.Conv2d): return
+    assert len(last_layers_output.shape) == 5, "conv data should have shape (batches, batch_size, channels, w, h)"
+    batches, batch_size, channels, h, w = last_layers_output.shape
+    out_channels, in_channels, kw, kh = layer.weight.shape
+    assert channels == in_channels, "data and layer don't match"
+
+    with torch.no_grad():
+        last_layers_output = last_layers_output.reshape(batches * batch_size, channels, h, w)
+
+        if h - layer.kernel_size[0] + 1 == 0:
+            import pdb
+            pdb.set_trace()
+
+        rs = torch.randint(h - layer.kernel_size[0] + 1, (layer.out_channels,))
+        cs = torch.randint(w - layer.kernel_size[1] + 1, (layer.out_channels,))
+        batch_item = torch.randint(batches * batch_size, (layer.out_channels,))
+
+        for b, r, c, o in zip(batch_item, rs, cs, range(layer.out_channels)):
+            weight = last_layers_output[b, :, r: r + kh, c: c + kw]
+            weight = weight.cuda()
+            assert weight.shape == layer.weight[o].shape, (weight.shape, layer.weight[o].shape)
+            layer.weight[o, ...] = weight
+
+        layer.bias[...] = 0
+
+
+def initialize_kmeans_if_conv2d(layer, last_layers_output, verbose = False):
+    if not isinstance(layer, nn.Conv2d): return
+    assert len(last_layers_output.shape) == 5, "conv data should have shape (batches, batch_size, channels, w, h)"
+    batches, batch_size, channels, h, w = last_layers_output.shape
+    out_channels, in_channels, kh, kw = layer.weight.shape
+    assert channels == in_channels, "data and layer don't match"
+
+
+    with torch.no_grad():
+        last_layers_output = last_layers_output.reshape(batches * batch_size, channels, h, w)
+
+        if h - layer.kernel_size[0] + 1 == 0:
+            import pdb
+            pdb.set_trace()
+
+        oversample = 5
+        rs = torch.randint(h - layer.kernel_size[0] + 1, (oversample * layer.out_channels,))
+        cs = torch.randint(w - layer.kernel_size[1] + 1, (oversample * layer.out_channels,))
+        batch_item = torch.randint(batches * batch_size, (oversample * layer.out_channels,))
+
+        data = []
+        for b, r, c, o in zip(batch_item, rs, cs, range(oversample * layer.out_channels)):
+            datum = last_layers_output[b, :, r: r + kh, c: c + kw]
+            assert datum.shape == layer.weight[0].shape, (weight.shape, layer.weight[0].shape)
+            data.append(datum.reshape(-1))
+
+        data = torch.stack(data, dim = 0)
+        assert data.shape == (oversample * layer.out_channels, channels * kh * kw)
+        kmeans = MiniBatchKMeans(layer.out_channels, n_init = 2, init_size = 2 * layer.out_channels)
+        centers = kmeans.fit(data.cpu().detach().numpy()).cluster_centers_
+        weight = centers.reshape((layer.out_channels, layer.in_channels, kh, kw))
+        
+        layer.weight[...] = torch.from_numpy(weight)
+        layer.bias[...] = 0
+
+
+
+
+def initialize_pca_if_conv2d(layer, last_layers_output: torch.Tensor,
+                             zca = False, verbose = False) -> None:
+    if not isinstance(layer, nn.Conv2d): return
+    assert len(last_layers_output.shape) == 5, "conv data should have shape (batches, batch_size, channels, w, h)"
+    batches, batch_size, channels, h, w = last_layers_output.shape
+    out_channels, in_channels, kh, kw = layer.weight.shape
+    assert channels == in_channels, "data and layer don't match"
+
+    with torch.no_grad():
+        last_layers_output = last_layers_output.reshape(batches * batch_size, channels, h, w)
+
+        if h - layer.kernel_size[0] + 1 == 0:
+            import pdb
+            pdb.set_trace()
+
+        oversample = 5
+        rs = torch.randint(h - layer.kernel_size[0] + 1, (oversample * layer.out_channels,))
+        cs = torch.randint(w - layer.kernel_size[1] + 1, (oversample * layer.out_channels,))
+        batch_item = torch.randint(batches * batch_size, (oversample * layer.out_channels,))
+
+        data = []
+        for b, r, c, o in zip(batch_item, rs, cs, range(oversample * layer.out_channels)):
+            datum = last_layers_output[b, :, r: r + kh, c: c + kw]
+            assert datum.shape == layer.weight[0].shape, (weight.shape, layer.weight[0].shape)
+            data.append(datum.reshape(-1))
+
+        data = torch.stack(data, dim = 0)
+        assert data.shape == (oversample * layer.out_channels, channels * kh * kw)
+
+        s, V = sorted_pcad_data(data)
+        assert V.shape == (channels * kh * kw, channels * kh * kw), (V.shape, (channels * kh * kw, channels * kh * kw))
+
+        if len(V) >= layer.out_channels:
+            weight = V[-layer.out_channels:].reshape(layer.out_channels, layer.in_channels, kh, kw)
+            assert weight.shape == layer.weight.shape, (weight.shape, layer.weight.shape)
+        else:
+            more_needed = (layer.out_channels - len(V),)
+            to_add = torch.randint(len(V), size = more_needed)
+            weight = torch.cat((V[to_add], V), dim = 0).reshape(layer.out_channels, layer.in_channels, kh, kw)
+            assert weight.shape == layer.weight.shape, (weight.shape, layer.weight.shape)
+ 
+        layer.weight[...] = weight
+        layer.bias[...] = 0
+
+
+# pca
 initialize_lsuv_pca = create_scaling_based_init(initialize_layer_pca, check_model_supports_pca)
 initialize_lsuv_pca.__name__ = "initialize_lsuv_pca"
-initialize_lsuv_zca = create_scaling_based_init(initialize_layer_zca, check_model_supports_pca)
-initialize_lsuv_zca.__name__ = "initialize_lsuv_zca"
-initialize_lsuv_kmeans = create_scaling_based_init(initialize_layer_kmeans, None)
-initialize_lsuv_kmeans.__name__ = "initialize_lsuv_kmeans"
-
 initialize_pca = create_layer_wise_init(initialize_layer_pca, check_model_supports_pca)
 initialize_pca.__name__ = "initialize_pca"
+
+# zca
+initialize_lsuv_zca = create_scaling_based_init(initialize_layer_zca, check_model_supports_pca)
+initialize_lsuv_zca.__name__ = "initialize_lsuv_zca"
 initialize_zca = create_layer_wise_init(initialize_layer_zca, check_model_supports_pca)
 initialize_zca.__name__ = "initialize_zca"
+
+# kmeans
+initialize_lsuv_kmeans = create_scaling_based_init(initialize_layer_kmeans, None)
+initialize_lsuv_kmeans.__name__ = "initialize_lsuv_kmeans"
 initialize_kmeans = create_layer_wise_init(initialize_layer_kmeans, None)
 initialize_kmeans.__name__ = "initialize_kmeans"
 
-
-def initialize_kmeans_if_conv2d(layer, last_layers_output, zca = True, verbose = False):
-    if not isinstance(layer, nn.Conv2d): return
-
-    data = batches_to_one_batch(last_layers_output)
-    b, x, w, h = data.shape
-    data = data.reshape(b, -1)
-    necessary = layer.weight.shape.numel() // data.shape[1] + 1
-    km = KMeans(necessary).fit(data.cpu().detach().numpy()).cluster_centers_
-
-    weight = km.reshape(-1)[:layer.weight.shape.numel()]
-
-    with torch.no_grad():
-        layer.weight[...] = torch.from_numpy(weight.reshape(layer.weight.shape)).cuda()
-        layer.bias[...] = 0
-
-
-def initialize_kmeans_if_linear(layer, last_layers_output, zca = True, verbose = False):
-    if not isinstance(layer, nn.Linear): return
-
-    data = batches_to_one_batch(last_layers_output)
-    b, f  = data.shape
-    necessary = layer.weight.shape.numel() // data.shape[1] + 1
-    km = KMeans(necessary).fit(data.cpu().detach().numpy()).cluster_centers_
-    weight = km.reshape(-1)[:layer.weight.shape.numel()]
-
-    with torch.no_grad():
-        layer.weight[...] = weight.reshape(layer.weight.shape)
-        layer.bias[...] = 0
-
-initialize_lsuv_random_samples = create_scaling_based_init(initialize_layer_data, \
-                                                           check_architecture_is_sequential)
+# random samples
+initialize_lsuv_random_samples = create_scaling_based_init(initialize_layer_data, check_architecture_is_sequential)
 initialize_lsuv_random_samples.__name__ = "initialize_lsuv_random_samples"
-initialize_random_samples = create_layer_wise_init(initialize_layer_data, \
-                                                   check_architecture_is_sequential)
+initialize_random_samples = create_layer_wise_init(initialize_layer_data, check_architecture_is_sequential)
 initialize_random_samples.__name__ = "initialize_random_samples "
 
 
-def initialize_pca_if_conv2d(layer, data_orig: torch.Tensor,
-                             zca = False, verbose = False) -> None:
-
-    if not isinstance(layer, nn.Conv2d): return
-
-    data = reshape_and_transpose_batches_for_conv_pca(data_orig)
-
-    # PCA / ZCA
-    # print(len(data))
-    data = data[:2000]
-    s, V = sorted_pcad_data(data)
-
-    s[s < 1e-6] = 0
-    s[s >= 1e-6] = 1 / torch.sqrt(s[s >= 1e-6] + 1e-3)
-    S = torch.diag(s)
-
-    weight = S @ V.T
-    if zca:
-        weight = V @ weight
-
-    weight = weight.view(-1)[-layer.weight.shape.numel():]
-    weight = weight.reshape(layer.weight.shape)
-
-
-    with torch.no_grad():
-        layer.weight[...] = weight
-        layer.bias[...] = 0
-
-
-def initialize_pca_if_linear(layer, data_orig: torch.Tensor,
-                             zca = False, verbose = False) -> None:
-
-    if not isinstance(layer, nn.Linear): return
-
-    #print(data_orig.shape)
-
-    data = data_orig.reshape(-1, data_orig.shape[-1])
-
-    # PCA / ZCA
-    #print(len(data))
-    data = data[:2048]
-    s, V = sorted_pcad_data(data)
-
-    s[s < 1e-6] = 0
-    s[s >= 1e-6] = 1 / torch.sqrt(s[s >= 1e-6] + 1e-3)
-    S = torch.diag(s)
-
-    weight = S @ V.T
-    if zca:
-        weight = V @ weight
-    weight = weight.cuda()
-
-    weight = weight.view(-1)[-layer.weight.shape.numel():]
-    weight = weight.reshape(layer.weight.shape)
-
-
-    with torch.no_grad():
-        layer.weight[...] = weight
-        layer.bias[...] = 0
-
-
-def sorted_pcad_data(data):
-    data = data.cpu()
+def sorted_pcad_data(data, min_data = None):
     with torch.no_grad():
         data = data - data.mean(dim = 0, keepdims = True)
-        Z = data @ data.T
-        s, V = np.linalg.eigh(Z)
-        sorted_indices = np.argsort(s)
+        if min_data != None:
+            indices = torch.randperm(len(data))[:min_data]
+            data = data[indices]
+
+        Z = data.T @ data
+
+        ret = torch.eig(Z, eigenvectors = True)
+        s, V = ret.eigenvalues[:, 0], ret.eigenvectors
+        sorted_indices = torch.argsort(s)
         s = s[sorted_indices]
         V = V[:, sorted_indices]
 
-        return torch.from_numpy(s), torch.from_numpy(V)
+        return s, V
 
 
 def reshape_and_transpose_batches_for_conv_pca(batches):
