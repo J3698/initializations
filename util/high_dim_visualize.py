@@ -25,11 +25,11 @@ BATCH_SIZE = 64 if cuda else 1
 def main():
 
 
-    train_loader, val_loader = create_librispeech_dataloaders(15, 512)
+    train_loader, val_loader = create_librispeech_dataloaders(15, 256)
     visualize_all_mlp_inits(train_loader, val_loader, [MLP])
 
-    train_loader, val_loader = create_CIFAR10_dataloaders(BATCH_SIZE)
-    visualize_all_cnn_inits(train_loader, val_loader, [VGG19])
+    # train_loader, val_loader = create_CIFAR10_dataloaders(BATCH_SIZE)
+    # visualize_all_cnn_inits(train_loader, val_loader, [VGG19])
 
 
 
