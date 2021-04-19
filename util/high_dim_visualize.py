@@ -6,7 +6,7 @@ import sys
 import traceback
 sys.path.append(".")
 
-from sklearn.manifold import MDS 
+from sklearn.manifold import MDS
 import matplotlib.pyplot as plt
 
 from models.vgg import VGG19, VGG19BN
@@ -25,8 +25,8 @@ BATCH_SIZE = 64 if cuda else 1
 def main():
 
 
-    train_loader, val_loader = create_librispeech_dataloaders(15, 512)
-    visualize_all_mlp_inits(train_loader, val_loader, [MLP])
+    # train_loader, val_loader = create_librispeech_dataloaders(15, 512)
+    # visualize_all_mlp_inits(train_loader, val_loader, [MLP])
 
     train_loader, val_loader = create_CIFAR10_dataloaders(BATCH_SIZE)
     visualize_all_cnn_inits(train_loader, val_loader, [VGG19])
@@ -52,13 +52,14 @@ def visualize_all_mlp_inits(train_loader, val_loader, models):
                     for i, l in enumerate(model.layers):
                         with torch.no_grad():
                             if isinstance(l, nn.Linear):
-                                inps = get_random_linear_inputs(last_layers_output, l, 5000)
+                                points = 5000
+                                inps = get_random_linear_inputs(last_layers_output, l, points)
                                 inps = torch.cat((inps.cuda(), l.weight), dim = 0)
 
-                                embedding = MDS(n_components = 2, n_jobs = -1) 
+                                embedding = MDS(n_components = 2, n_jobs = -1)
                                 inps_transformed = embedding.fit_transform(inps.cpu().numpy())
-                                plt.scatter(inps_transformed[:5000, 0], inps_transformed[:5000, 1], color = 'blue')
-                                plt.scatter(inps_transformed[5000:, 0], inps_transformed[5000:, 1], color = 'red')
+                                plt.scatter(inps_transformed[:points, 0], inps_transformed[:points, 1], color = 'blue')
+                                plt.scatter(inps_transformed[points:, 0], inps_transformed[points:, 1], color = 'red')
                                 plt.savefig(f'MDS-{i}-{test_name}.png')
                             last_layers_output = put_all_batches_through_layer(l, last_layers_output.cuda())
                 except Exception:
@@ -85,13 +86,14 @@ def visualize_all_cnn_inits(train_loader, val_loader, models):
                     for i, l in enumerate(model.layers):
                         with torch.no_grad():
                             if isinstance(l, nn.Conv2d):
-                                inps = get_random_conv_inputs(last_layers_output, l, 5000)
+                                points = 5000
+                                inps = get_random_conv_inputs(last_layers_output, l, points)
                                 inps = torch.cat((inps.cuda(), l.weight.reshape((l.weight.shape[0], -1))))
 
-                                embedding = MDS(n_components = 2, n_jobs = -1) 
+                                embedding = MDS(n_components = 2, n_jobs = -1)
                                 inps_transformed = embedding.fit_transform(inps.cpu().numpy())
-                                plt.scatter(inps_transformed[:5000, 0], inps_transformed[:5000, 1], color = 'blue')
-                                plt.scatter(inps_transformed[5000:, 0], inps_transformed[5000:, 1], color = 'red')
+                                plt.scatter(inps_transformed[:points, 0], inps_transformed[:points, 1], color = 'blue')
+                                plt.scatter(inps_transformed[points:, 0], inps_transformed[points:, 1], color = 'red')
                                 plt.savefig(f'MDS-{i}-{test_name}.png')
 
                             last_layers_output = put_all_batches_through_layer(l, last_layers_output)
