@@ -10,7 +10,7 @@ from models.vgg import VGG19
 from sklearn.cluster import MiniBatchKMeans
 from cifar_dataloaders import create_CIFAR10_dataloaders
 
-
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 AFFINE_TYPES = (nn.Linear, nn.Conv2d)
 
 
@@ -35,9 +35,9 @@ def initialize_layer_zca(layer, last_layers_output, verbose = False) -> None:
     initialize_pca_if_conv2d(layer, last_layers_output, zca = True, verbose = verbose)
     initialize_pca_if_linear(layer, last_layers_output, zca = True, verbose = verbose)
 
-def initialize_layer_kmeans(layer, last_layers_output, verbose = False) -> None:
-    initialize_kmeans_if_conv2d(layer, last_layers_output, verbose = verbose)
-    initialize_kmeans_if_linear(layer, last_layers_output, verbose = verbose)
+def initialize_layer_kmeans(layer, last_layers_output, verbose = False, hook = None) -> None:
+    initialize_kmeans_if_conv2d(layer, last_layers_output, verbose = verbose, hook = hook)
+    initialize_kmeans_if_linear(layer, last_layers_output, verbose = verbose, hook = hook)
 
 
 def initialize_layer_data(layer, last_layers_output) -> None:
@@ -65,7 +65,7 @@ def initialize_data_if_linear(layer, last_layers_output) -> None:
         layer.weight[...] = new_weight
 
 
-def initialize_kmeans_if_linear(layer, last_layers_output, verbose = False):
+def initialize_kmeans_if_linear(layer, last_layers_output, verbose = False, hook = None):
     if not isinstance(layer, nn.Linear): return
     assert len(last_layers_output.shape) == 3, "linear data should have shape (batches, batch_size, feats)"
     batches, batch_size, feats = last_layers_output.shape
@@ -82,11 +82,14 @@ def initialize_kmeans_if_linear(layer, last_layers_output, verbose = False):
     assert new_weight.shape == layer.weight.shape
 
     with torch.no_grad():
-        layer.weight[...] = torch.from_numpy(new_weight).cuda()
+        layer.weight[...] = torch.from_numpy(new_weight).to(DEVICE)
         layer.bias[...] = 0
 
+    if hook is not None:
+        hook(layer, last_layers_output)
 
-def initialize_pca_if_linear(layer, last_layers_output: torch.Tensor, zca = False, verbose = False) -> None:
+
+def initialize_pca_if_linear(layer, last_layers_output: torch.Tensor, zca = False, verbose = False, hook = None) -> None:
     if not isinstance(layer, nn.Linear): return
     assert len(last_layers_output.shape) == 3, "linear data should have shape (batches, batch_size, feats)"
     batches, batch_size, feats = last_layers_output.shape
@@ -106,9 +109,12 @@ def initialize_pca_if_linear(layer, last_layers_output: torch.Tensor, zca = Fals
             weight = torch.cat((V[to_add], V), dim = 0)
             assert weight.shape == layer.weight.shape, (weight.shape, layer.weight.shape)
 
-        weight = weight.cuda()
+        weight = weight.to(DEVICE)
         layer.weight[...] = weight
         layer.bias[...] = 0
+
+    if hook is not None:
+        hook(layer, last_layers_output)
 
 
 def initialize_data_if_conv(layer, last_layers_output) -> None:
@@ -131,14 +137,14 @@ def initialize_data_if_conv(layer, last_layers_output) -> None:
 
         for b, r, c, o in zip(batch_item, rs, cs, range(layer.out_channels)):
             weight = last_layers_output[b, :, r: r + kh, c: c + kw]
-            weight = weight.cuda()
+            weight = weight.to(DEVICE)
             assert weight.shape == layer.weight[o].shape, (weight.shape, layer.weight[o].shape)
             layer.weight[o, ...] = weight
 
         layer.bias[...] = 0
 
 
-def initialize_kmeans_if_conv2d(layer, last_layers_output, verbose = False):
+def initialize_kmeans_if_conv2d(layer, last_layers_output, verbose = False, hook = None):
     if not isinstance(layer, nn.Conv2d): return
     assert len(last_layers_output.shape) == 5, "conv data should have shape (batches, batch_size, channels, w, h)"
     batches, batch_size, channels, h, w = last_layers_output.shape
@@ -169,7 +175,7 @@ def initialize_kmeans_if_conv2d(layer, last_layers_output, verbose = False):
         kmeans = MiniBatchKMeans(layer.out_channels, n_init = 2, init_size = 2 * layer.out_channels)
         centers = kmeans.fit(data.cpu().detach().numpy()).cluster_centers_
         weight = centers.reshape((layer.out_channels, layer.in_channels, kh, kw))
-        
+
         layer.weight[...] = torch.from_numpy(weight)
         layer.bias[...] = 0
 
@@ -216,7 +222,7 @@ def initialize_pca_if_conv2d(layer, last_layers_output: torch.Tensor,
             to_add = torch.randint(len(V), size = more_needed)
             weight = torch.cat((V[to_add], V), dim = 0).reshape(layer.out_channels, layer.in_channels, kh, kw)
             assert weight.shape == layer.weight.shape, (weight.shape, layer.weight.shape)
- 
+
         layer.weight[...] = weight
         layer.bias[...] = 0
 

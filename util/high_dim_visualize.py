@@ -23,8 +23,6 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 BATCH_SIZE = 64 if cuda else 1
 
 def main():
-
-
     train_loader, val_loader = create_librispeech_dataloaders(15, 256)
     visualize_all_mlp_inits(train_loader, val_loader, [MLP])
     # train_loader, val_loader = create_librispeech_dataloaders(15, 512)
@@ -48,22 +46,31 @@ def visualize_all_mlp_inits(train_loader, val_loader, models):
 
                 try:
                     model = model_type(nonlinearity = nonlinearity)
-                    init(model, train_loader, show_progress = True)
-                    model.cuda()
+                    def record_weight(layer, last_layers_output):
+                        breakpoint()
+
+                    init(model, train_loader, show_progress = True, hook = record_weight)
+                    if torch.cuda.is_available():
+                        model.cuda()
                     last_layers_output = get_batch_of_all_inputs(train_loader)
                     for i, l in enumerate(model.layers):
                         with torch.no_grad():
                             if isinstance(l, nn.Linear):
                                 points = 5000
                                 inps = get_random_linear_inputs(last_layers_output, l, points)
-                                inps = torch.cat((inps.cuda(), l.weight), dim = 0)
+                                if torch.cuda.is_available():
+                                    inps = inps.cuda()
+                                inps = torch.cat((inps, l.weight), dim = 0)
 
                                 embedding = MDS(n_components = 2, n_jobs = -1)
                                 inps_transformed = embedding.fit_transform(inps.cpu().numpy())
+                                breakpoint()
                                 plt.scatter(inps_transformed[:points, 0], inps_transformed[:points, 1], color = 'blue')
                                 plt.scatter(inps_transformed[points:, 0], inps_transformed[points:, 1], color = 'red')
                                 plt.savefig(f'MDS-{i}-{test_name}.png')
-                            last_layers_output = put_all_batches_through_layer(l, last_layers_output.cuda())
+                            if torch.cuda.is_available():
+                                last_layers_output = last_layers_output.cuda()
+                            last_layers_output = put_all_batches_through_layer(l, last_layers_output)
                 except Exception:
                     print(traceback.format_exc())
                     print("failed:", test_name)

@@ -14,9 +14,11 @@ def create_layer_wise_init(layer_init_function, model_checker):
 
 
 def layer_wise_initialize(model: nn.Module, train_loader, layer_init_function,
-                          show_progress = False, verbose = False, model_checker = None) -> None:
+                          show_progress = False, verbose = False,
+                          model_checker = None, **kwargs) -> None:
 
-    model = model.cuda()
+    if torch.cuda.is_available():
+        model = model.cuda()
     model.train()
 
     if model_checker is None:
@@ -31,7 +33,7 @@ def layer_wise_initialize(model: nn.Module, train_loader, layer_init_function,
 
     warn = True
     for i, layer in layers:
-        layer_init_function(layer, last_layers_output)
+        layer_init_function(layer, last_layers_output, **kwargs)
         last_layers_output = put_all_batches_through_layer(layer, last_layers_output)
 
         if warn:
@@ -108,7 +110,9 @@ def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> 
     # print(f"item: {next(iter(train_loader))[0].shape}, len: {max_items}")
     loader = enumerate(train_loader)
     data = [x[None, ...] for i, (x, y) in loader]
-    out = torch.cat(data, dim =  0).cuda()
+    out = torch.cat(data, dim =  0)
+    if torch.cuda.is_available():
+        out = out.cuda()
 
     assert out.shape[1:] == input_shape, (out.shape, input_shape)
     return out

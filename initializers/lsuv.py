@@ -3,8 +3,8 @@ from functools import partial
 
 
 def create_scaling_based_init(layer_init_function, model_checker):
-    def new_layer_init_function(layer, last_layers_output):
-        layer_init_function(layer, last_layers_output)
+    def new_layer_init_function(layer, last_layers_output, **kwargs):
+        layer_init_function(layer, last_layers_output, **kwargs)
         iteratively_scale_and_rebias_layer(layer, last_layers_output)
 
     return create_layer_wise_init(new_layer_init_function, model_checker)
