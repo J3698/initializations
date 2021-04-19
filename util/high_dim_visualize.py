@@ -46,10 +46,9 @@ def visualize_all_mlp_inits(train_loader, val_loader, models):
 
                 try:
                     model = model_type(nonlinearity = nonlinearity)
-                    def record_weight(layer, last_layers_output):
-                        breakpoint()
-
-                    init(model, train_loader, show_progress = True, hook = record_weight)
+                    def record_weight():
+                        pass
+                    init(model, train_loader, show_progress = True)
                     if torch.cuda.is_available():
                         model.cuda()
                     last_layers_output = get_batch_of_all_inputs(train_loader)
@@ -60,14 +59,22 @@ def visualize_all_mlp_inits(train_loader, val_loader, models):
                                 inps = get_random_linear_inputs(last_layers_output, l, points)
                                 if torch.cuda.is_available():
                                     inps = inps.cuda()
-                                inps = torch.cat((inps, l.weight), dim = 0)
+ 
+                                lw = l.weight
+                                m = inps.mean(dim = 0)
+                                n = torch.norm(inps - m, dim = 1).mean()
+                                lw -= lw.mean(dim = 0)
+                                lw /= (torch.norm(lw, dim = 1).mean() + 1e-15)
+                                lw = lw * n + m
+
+                                inps = torch.cat((inps, lw), dim = 0)
 
                                 embedding = MDS(n_components = 2, n_jobs = -1)
                                 inps_transformed = embedding.fit_transform(inps.cpu().numpy())
-                                breakpoint()
                                 plt.scatter(inps_transformed[:points, 0], inps_transformed[:points, 1], color = 'blue')
                                 plt.scatter(inps_transformed[points:, 0], inps_transformed[points:, 1], color = 'red')
                                 plt.savefig(f'MDS-{i}-{test_name}.png')
+                                print(i)
                             if torch.cuda.is_available():
                                 last_layers_output = last_layers_output.cuda()
                             last_layers_output = put_all_batches_through_layer(l, last_layers_output)
