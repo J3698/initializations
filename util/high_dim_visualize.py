@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import tqdm
 
 import os
 import sys
@@ -46,46 +47,48 @@ def visualize_all_mlp_inits(train_loader, val_loader, models):
 
                 try:
                     model = model_type(nonlinearity = nonlinearity)
-                    def record_weight():
-                        pass
+
                     init(model, train_loader, show_progress = True)
-                    if torch.cuda.is_available():
-                        model.cuda()
-                    last_layers_output = get_batch_of_all_inputs(train_loader)
-                    for i, l in enumerate(model.layers):
-                        with torch.no_grad():
-                            if isinstance(l, nn.Linear):
-                                points = l.weight.shape[0] * 2
-                                print(points)
-                                inps = get_random_linear_inputs(last_layers_output, l, points)
-                                if torch.cuda.is_available():
-                                    inps = inps.cuda()
-
-                                lw = l.weight
-                                m = inps.mean(dim = 0)
-                                n = torch.norm(inps - m, dim = 1).mean()
-                                lw -= lw.mean(dim = 0)
-                                lw /= (torch.norm(lw, dim = 1).mean() + 1e-15)
-                                lw = lw * n + m
-
-                                inps = torch.cat((inps, lw), dim = 0)
-
-                                embedding = MDS(n_components = 2, n_jobs = -1)
-                                inps_transformed = embedding.fit_transform(inps.cpu().numpy())
-                                plt.scatter(inps_transformed[:points, 0], inps_transformed[:points, 1], color = 'blue')
-                                plt.scatter(inps_transformed[points:, 0], inps_transformed[points:, 1], color = 'red')
-                                plt.savefig(f'MDS-{i}-{test_name}.png')
-                                plt.close()
-                                print(i)
-                            if torch.cuda.is_available():
-                                last_layers_output = last_layers_output.cuda()
-                            last_layers_output = put_all_batches_through_layer(l, last_layers_output)
+                    visualize_weights_mlp(model, train_loader, "./MDS", "init", test_name)
                 except Exception:
                     print(traceback.format_exc())
                     print("failed:", test_name)
 
 
-def visualize_all_cnn_inits(train_loader, val_loader, models):
+def visualize_weights_mlp(model, train_loader, folder, vis_name, test_name):
+    if torch.cuda.is_available():
+        model.cuda()
+
+    last_layers_output = get_batch_of_all_inputs(train_loader)
+    for i, l in tqdm.tqdm(enumerate(model.layers), total = len(model.layers)):
+        with torch.no_grad():
+            if isinstance(l, nn.Linear):
+                points = l.weight.shape[0] * 2
+                inps = get_random_linear_inputs(last_layers_output, l, points)
+                if torch.cuda.is_available():
+                    inps = inps.cuda()
+
+                lw = l.weight
+                m = inps.mean(dim = 0)
+                n = torch.norm(inps - m, dim = 1).mean()
+                lw -= lw.mean(dim = 0)
+                lw /= (torch.norm(lw, dim = 1).mean() + 1e-15)
+                lw = lw * n + m
+                inps = torch.cat((inps, lw), dim = 0)
+
+                embedding = MDS(n_components = 2, n_jobs = -1)
+                inps_transformed = embedding.fit_transform(inps.cpu().numpy())
+                plt.scatter(inps_transformed[:points, 0], inps_transformed[:points, 1], color = 'blue')
+                plt.scatter(inps_transformed[points:, 0], inps_transformed[points:, 1], color = 'red')
+                plt.savefig(os.path.join(folder, f'MDS-{test_name}-{vis_name}-{i}-.png'))
+                plt.close()
+
+            if torch.cuda.is_available():
+                last_layers_output = last_layers_output.cuda()
+            last_layers_output = put_all_batches_through_layer(l, last_layers_output)
+
+
+def visualize_all_cnn_inits(train_loader, folder, val_loader, models):
     for init, info in init_info.init_types.items():
         for nonlinearity in init_info.nonlinearity_types:
             if "include_nonlinearities" in info and\
@@ -112,10 +115,10 @@ def visualize_all_cnn_inits(train_loader, val_loader, models):
                                 inps_transformed = embedding.fit_transform(inps.cpu().numpy())
                                 plt.scatter(inps_transformed[:points, 0], inps_transformed[:points, 1], color = 'blue')
                                 plt.scatter(inps_transformed[points:, 0], inps_transformed[points:, 1], color = 'red')
-                                plt.savefig(f'MDS-{i}-{test_name}.png')
+                                plt.savefig(os.path.join(folder, f'MDS-{i}-{test_name}.png'))
                                 plt.close()
-
                             last_layers_output = put_all_batches_through_layer(l, last_layers_output)
+
                 except Exception:
                     print("failed:", test_name)
                     print(traceback.format_exc())

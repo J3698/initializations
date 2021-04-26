@@ -19,6 +19,7 @@ from models.mlp import MLP, MLPBN
 from tests import check_all_inits_work
 from util.signal_propagation_plots import signal_propagation_plot, SignalPropagationPlotter
 import init_info
+from util.high_dim_visualize import visualize_weights_mlp
 
 
 cuda = torch.cuda.is_available()
@@ -35,9 +36,10 @@ def main():
 
     print("Generating MLP SPPs for each init")
     models = [MLP]
-    check_all_inits_work(train_loader, val_loader, models)
-    # writer = SummaryWriter()
-    # test_all_inits(train_loader, val_loader, models, writer)
+    # check_all_inits_work(train_loader, val_loader, models)
+
+    writer = SummaryWriter()
+    test_all_inits(train_loader, val_loader, models, writer)
 
 
 def test_all_inits(train_loader, val_loader, models, writer):
@@ -51,14 +53,18 @@ def test_all_inits(train_loader, val_loader, models, writer):
                 test_name = f"{init.__name__}-{model_type.__name__}-" + \
                             f"{nonlinearity.__name__}"
 
-                model = model_type(nonlinearity = nonlinearity)
-                init(model, train_loader, show_progress = True)
-                test_init(test_name, model, train_loader, val_loader, writer)
+                try:
+                    model = model_type(nonlinearity = nonlinearity)
+                    init(model, train_loader, show_progress = True)
+                    test_init(test_name, model, train_loader, val_loader, writer, test_name)
+                except Exception:
+                    print(traceback.format_exc())
+                    print("failed:", test_name)
 
 
 
 
-def test_init(init_name, model, train_loader, val_loader, writer):
+def test_init(init_name, model, train_loader, val_loader, writer, test_name):
     print(f"Testing init: {init_name}")
 
     model.to(DEVICE)
@@ -67,6 +73,8 @@ def test_init(init_name, model, train_loader, val_loader, writer):
     criterion = nn.CrossEntropyLoss()
 
     for epoch in range(NUM_EPOCHS):
+        if epoch % 5 == 0:
+            visualize_weights_mlp(model, train_loader, "./MDS", str(epoch), test_name)
         train_loss, train_accuracy = train_epoch(model, optimizer, criterion, train_loader, epoch, init_name)
         val_loss, val_accuracy = validate(model, criterion, val_loader)
 

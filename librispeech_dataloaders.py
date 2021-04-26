@@ -14,19 +14,17 @@ def main():
 
 
 def create_librispeech_dataloaders(context, batch_size = 32, num_workers = 4):
-    """
     train_dataset = LibriDataset("data/hw1p2/train.npy",
                                  "data/hw1p2/train_labels.npy", context)
     train_loader_args = dict(shuffle = True, batch_size = batch_size, num_workers=num_workers, pin_memory = True)
     train_loader = DataLoader(train_dataset, **train_loader_args)
-    """
 
     val_dataset = LibriDataset("data/hw1p2/dev.npy",
                                "data/hw1p2/dev_labels.npy", context)
     val_loader_args = dict(shuffle = False, batch_size = batch_size, num_workers=num_workers, pin_memory = True)
     val_loader = DataLoader(val_dataset, **val_loader_args)
 
-    return val_loader, val_loader # train_loader, val_loader
+    return train_loader, val_loader
 
 
 class LibriDataset(Dataset):
