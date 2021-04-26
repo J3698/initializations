@@ -55,11 +55,12 @@ def visualize_all_mlp_inits(train_loader, val_loader, models):
                     for i, l in enumerate(model.layers):
                         with torch.no_grad():
                             if isinstance(l, nn.Linear):
-                                points = 5000
+                                points = l.weight.shape[0] * 2
+                                print(points)
                                 inps = get_random_linear_inputs(last_layers_output, l, points)
                                 if torch.cuda.is_available():
                                     inps = inps.cuda()
- 
+
                                 lw = l.weight
                                 m = inps.mean(dim = 0)
                                 n = torch.norm(inps - m, dim = 1).mean()
@@ -74,6 +75,7 @@ def visualize_all_mlp_inits(train_loader, val_loader, models):
                                 plt.scatter(inps_transformed[:points, 0], inps_transformed[:points, 1], color = 'blue')
                                 plt.scatter(inps_transformed[points:, 0], inps_transformed[points:, 1], color = 'red')
                                 plt.savefig(f'MDS-{i}-{test_name}.png')
+                                plt.close()
                                 print(i)
                             if torch.cuda.is_available():
                                 last_layers_output = last_layers_output.cuda()
@@ -111,6 +113,7 @@ def visualize_all_cnn_inits(train_loader, val_loader, models):
                                 plt.scatter(inps_transformed[:points, 0], inps_transformed[:points, 1], color = 'blue')
                                 plt.scatter(inps_transformed[points:, 0], inps_transformed[points:, 1], color = 'red')
                                 plt.savefig(f'MDS-{i}-{test_name}.png')
+                                plt.close()
 
                             last_layers_output = put_all_batches_through_layer(l, last_layers_output)
                 except Exception:
