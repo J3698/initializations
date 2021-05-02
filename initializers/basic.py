@@ -20,7 +20,7 @@ def initialize_tanh_lecun_uniform(model, loader, show_progress = False):
     layers = model.layers if not show_progress else tqdm.tqdm(model.layers)
     for layer in layers:
         if isinstance(layer, (nn.Linear, nn.Conv2d)):
-            lecun_uniform_init_weight(layer.weight)
+            lecun_uniform_init_weight(layer.weight, loader)
             torch.nn.init.zeros_(layer.bias)
 
 

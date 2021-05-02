@@ -20,6 +20,7 @@ from tests import check_all_inits_work
 from util.signal_propagation_plots import signal_propagation_plot, SignalPropagationPlotter
 import init_info
 from util.high_dim_visualize import visualize_weights_mlp
+import traceback
 
 
 cuda = torch.cuda.is_available()
@@ -28,7 +29,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"num_workers: {NUM_WORKERS}, device: {DEVICE}")
 
 BATCH_SIZE = 4096 if cuda else 1
-NUM_EPOCHS = 50
+NUM_EPOCHS = 5
 
 def main():
     print("Creating data loaders")
@@ -47,11 +48,12 @@ def test_all_inits(train_loader, val_loader, models, writer):
         for nonlinearity in init_info.nonlinearity_types:
             if "include_nonlinearities" in info and\
                nonlinearity not in info["include_nonlinearities"]:
-                break
+                continue
 
             for model_type in models:
                 test_name = f"{init.__name__}-{model_type.__name__}-" + \
                             f"{nonlinearity.__name__}"
+                print(test_name)
 
                 try:
                     model = model_type(nonlinearity = nonlinearity)
@@ -73,8 +75,7 @@ def test_init(init_name, model, train_loader, val_loader, writer, test_name):
     criterion = nn.CrossEntropyLoss()
 
     for epoch in range(NUM_EPOCHS):
-        if epoch % 5 == 0:
-            visualize_weights_mlp(model, train_loader, "./MDS", str(epoch), test_name)
+        visualize_weights_mlp(model, train_loader, "./MDS", str(epoch), test_name)
         train_loss, train_accuracy = train_epoch(model, optimizer, criterion, train_loader, epoch, init_name)
         val_loss, val_accuracy = validate(model, criterion, val_loader)
 

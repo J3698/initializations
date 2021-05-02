@@ -102,7 +102,7 @@ def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> 
 
     torch.multiprocessing.set_sharing_strategy('file_system')
 
-    max_items = len(train_loader) // 40 // 15
+    max_items = len(train_loader) // 40 // 50
     train_loader = islice(train_loader, 0, max_items)
     if show_progress:
         train_loader = tqdm.tqdm(train_loader, total = max_items)
