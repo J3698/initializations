@@ -75,7 +75,6 @@ def initialize_kmeans_if_linear(layer, last_layers_output, verbose = False, hook
     assert data.shape == (batches * batch_size, feats)
     necessary_centers = layer.out_features
 
-    print((necessary_centers * 5, len(data)))
     data_prepared = data.cpu().detach().numpy()[:max(necessary_centers * 10, len(data))]
     kmeans = MiniBatchKMeans(necessary_centers, n_init = 2, init_size = 2 * necessary_centers)
     new_weight = kmeans.fit(data_prepared).cluster_centers_

@@ -103,6 +103,9 @@ def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> 
     torch.multiprocessing.set_sharing_strategy('file_system')
 
     max_items = len(train_loader) // 40 // 50
+    if max_items == 0:
+        max_items = len(train_loader) - 1
+
     train_loader = islice(train_loader, 0, max_items)
     if show_progress:
         train_loader = tqdm.tqdm(train_loader, total = max_items)
@@ -110,6 +113,7 @@ def get_batch_of_all_inputs(train_loader: DataLoader, show_progress = False) -> 
     # print(f"item: {next(iter(train_loader))[0].shape}, len: {max_items}")
     loader = enumerate(train_loader)
     data = [x[None, ...] for i, (x, y) in loader]
+    assert len(data) != 0, "no items to concat!"
     out = torch.cat(data, dim =  0)
     if torch.cuda.is_available():
         out = out.cuda()

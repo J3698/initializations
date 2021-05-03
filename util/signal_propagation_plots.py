@@ -4,25 +4,8 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 
-from models.vgg import VGG19
-from models.mlp import MLP
-
 from initializers.common import check_architecture_is_sequential
-from initializers.pca import initialize_pca
-from initializers.basic import \
-        initialize_he, initialize_orthogonal, \
-        initialize_tanh_lecun_uniform, initialize_tanh_xavier_uniform
 
-from cifar_dataloaders import create_CIFAR10_dataloaders
-from librispeech_dataloaders import create_librispeech_dataloaders
-
-
-def signal_propagation_plot(model, input_shape, name):
-    inputs = torch.normal(mean = torch.zeros(input_shape))
-
-    model_relu = VGG19(num_classes = 10)
-    with SignalPropagationPlotter(model, name):
-        model(inputs)
 
 class SignalPropagationPlotter:
     def __init__(self, model, filename):
@@ -43,7 +26,7 @@ class SignalPropagationPlotter:
         fig.suptitle(f"{self.filename}: Avg. Channel Squared Mean / Avg. Channel Variance")
         axs[0].plot(self.stats[0])
         axs[1].plot(self.stats[1])
-        plt.savefig(f"images/{self.filename}.png")
+        plt.savefig(f"{self.filename}.png")
         plt.close()
 
 
@@ -97,6 +80,3 @@ class SignalPropagationPlotter:
         return [i for i in model.layers if isinstance(i, affine_types)]
 
 
-
-if __name__ == "__main__":
-    main()
