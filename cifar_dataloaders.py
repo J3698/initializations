@@ -30,22 +30,25 @@ def create_CIFAR10_dataloaders(batch_size = 1):
     return train_loader, test_loader
 
 
-def create_MNIST_dataloaders():
+def create_MNIST_dataloaders(flatten = False, batch_size = 1):
     fix_MNIST_download_issue()
 
     transforms_to_compose = [transforms.ToTensor(),
                              transforms.Normalize((0.5,), (0.5,))]
+    if flatten:
+        transforms_to_compose.append(torch.flatten)
+
     transform = transforms.Compose(transforms_to_compose)
 
-    trainset = torchvision.datasets.MNIST(root='./data', train=True,
-                                            download=True, transform=transform)
-    train_loader = torch.utils.data.DataLoader(trainset, batch_size=4,
-                                               shuffle=True, num_workers=2)
+    trainset = torchvision.datasets.MNIST(root = './data', train = True,
+                                            download = True, transform = transform)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size = batch_size,
+                                               shuffle = True, num_workers = 2)
 
-    testset = torchvision.datasets.MNIST(root='./data', train=False,
-                                           download=True, transform=transform)
-    test_loader = torch.utils.data.DataLoader(testset, batch_size=4,
-                                              shuffle=False, num_workers=2)
+    testset = torchvision.datasets.MNIST(root = './data', train = False,
+                                           download = True, transform = transform)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size = batch_size,
+                                              shuffle = False, num_workers = 2)
 
     print(f"MNIST train set length {len(trainset)}, train loader length {len(train_loader)}")
     print(f"MNIST test set length {len(testset)}, test loader length {len(test_loader)}")
