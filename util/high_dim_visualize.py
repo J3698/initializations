@@ -12,8 +12,7 @@ import matplotlib.pyplot as plt
 
 from models.vgg import VGG19, VGG19BN
 from models.mlp import MLP, MLPBN
-from cifar_dataloaders import create_CIFAR10_dataloaders
-from librispeech_dataloaders import create_librispeech_dataloaders
+from dataloaders import create_CIFAR10_dataloaders, create_librispeech_dataloaders
 import init_info
 from initializers.common import get_random_conv_inputs, get_random_linear_inputs,\
                                 get_batch_of_all_inputs, put_all_batches_through_layer

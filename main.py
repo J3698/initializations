@@ -14,7 +14,7 @@ from dataloaders import create_MNIST_dataloaders,\
                         create_CIFAR10_dataloaders,\
                         create_librispeech_dataloaders
 
-from models.mlp import MLP, MLPBN
+from models.mlp import MLP, MLPBN, SmallMLP
 from models.vgg import VGG19
 
 from util.signal_propagation_plots import SignalPropagationPlotter
@@ -29,6 +29,7 @@ def main():
 
     print("Creating data loaders")
 
+    dataset = 'mnist'
     if dataset == "libri":
         train_loader, val_loader = create_librispeech_dataloaders(15, BATCH_SIZE)
         batch_size = 4096 if cuda else 1
@@ -36,8 +37,8 @@ def main():
         models = [MLP]
 
     elif dataset == "mnist":
-        train_loader, val_loader = create_MNIST_dataloaders(True, BATCH_SIZE)
-        batch_size = 4096 if cuda else 1
+        batch_size = 4096 if cuda else 512
+        train_loader, val_loader = create_MNIST_dataloaders(True, batch_size)
         num_epochs = 2
         models = [SmallMLP]
 

@@ -8,7 +8,7 @@ import tqdm
 from math import ceil
 from models.vgg import VGG19
 from sklearn.cluster import MiniBatchKMeans
-from cifar_dataloaders import create_CIFAR10_dataloaders
+from dataloaders import create_CIFAR10_dataloaders
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 AFFINE_TYPES = (nn.Linear, nn.Conv2d)

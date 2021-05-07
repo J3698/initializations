@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import sys
 sys.path.append(".")
-from librispeech_dataloaders import create_librispeech_dataloaders
+from dataloaders import create_librispeech_dataloaders
 
 
 def main():

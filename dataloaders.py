@@ -1,7 +1,10 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
+import torchvision
+from torchvision import transforms
 import tqdm
+from six.moves import urllib
 
 
 def create_librispeech_dataloaders(context, batch_size = 32, num_workers = 4):

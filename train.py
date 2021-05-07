@@ -24,6 +24,8 @@ from util.high_dim_visualize import visualize_weights_mlp
 from util.corrrelation_plots import CorrelationPlotter
 
 
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+NUM_EPOCHS = 2
 
 def test_all_inits(train_loader, val_loader, models, writer):
     if not sys.warnoptions:
@@ -65,6 +67,7 @@ def test_init(init_name, model, train_loader, val_loader, writer, test_name):
     scheduler = lr_scheduler.StepLR(optimizer, step_size = 10, gamma = 0.95)
     criterion = nn.CrossEntropyLoss()
     plotter = CorrelationPlotter(model, f"./CORm/{test_name}")
+    plotter = None
 
     for epoch in range(NUM_EPOCHS):
         visualize_weights_mlp(model, train_loader, "./MDSm", str(epoch), test_name)
@@ -78,7 +81,7 @@ def test_init(init_name, model, train_loader, val_loader, writer, test_name):
         writer.add_scalar(f'{init_name}/Loss/validate', val_loss, epoch)
         writer.add_scalar(f'{init_name}/Accuracy/validate', val_accuracy, epoch)
         print(f"stats: {train_loss:.2f}, {100 * train_accuracy:.2f}%, {val_loss:.2f}, {100 * val_accuracy:.2f}%")
-    plotter.plot(False)
+    #plotter.plot(False)
 
 
 def train_epoch(model, optimizer, criterion, train_loader,\
@@ -90,7 +93,7 @@ def train_epoch(model, optimizer, criterion, train_loader,\
 
     spp = SignalPropagationPlotter(model, f"./SPPm/{init_name}-{epoch}")
     for i, (x, y) in tqdm.tqdm(enumerate(train_loader), total = len(train_loader)):
-        plotter.record_datapoint()
+        #plotter.record_datapoint()
         x = x.to(DEVICE)
         y = y.to(DEVICE)
 

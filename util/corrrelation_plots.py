@@ -11,7 +11,7 @@ import tqdm
 
 from models.mlp import SmallMLP, MediumMLP
 from initializers.common import check_architecture_is_sequential
-from cifar_dataloaders import create_MNIST_dataloaders
+from dataloaders import create_MNIST_dataloaders
 
 
 def main():
