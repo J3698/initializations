@@ -53,7 +53,7 @@ def main():
 
     writer = SummaryWriter()
     test_all_inits(train_loader, val_loader, models, 
-                   writer, spp = True, fcp = True, mds = False)
+                   writer, spp = False, fcp = False, mds = True)
 
 
 if __name__ == "__main__":

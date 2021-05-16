@@ -90,7 +90,8 @@ def test_init(init_name, model, train_loader,\
         # print(f"stats: {train_loss:.2f}, {100 * train_accuracy:.2f}%," 
         #       f"{val_loss:.2f}, {100 * val_accuracy:.2f}%")
 
-    plotter.plot(False)
+    if plotter != None:
+        plotter.plot(False)
 
 
 def train_epoch(model, optimizer, criterion, train_loader,\
