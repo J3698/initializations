@@ -79,10 +79,16 @@ class CorrelationPlotter:
         norm_products = norms[:, None] * norms
         assert norm_products.shape == (neurons, neurons)
 
-        dots /= norm_products
+        dots /= (norm_products + 1e-6)
         dots[torch.arange(neurons), torch.arange(neurons)] = 0
 
-        return dots.sum() / (neurons * (neurons - 1))
+        avg_corr = (dots.sum() / (neurons * (neurons - 1))).cpu().detach().numpy()
+
+        if np.any(np.isnan(avg_corr)):
+            import pdb
+            pdb.set_trace()
+ 
+        return avg_corr
 
 
 if __name__ == "__main__":

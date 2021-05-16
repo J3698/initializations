@@ -25,7 +25,7 @@ from util.corrrelation_plots import CorrelationPlotter
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-NUM_EPOCHS = 50
+NUM_EPOCHS = 15
 
 def test_all_inits(train_loader, val_loader, models, writer,\
                    spp = True, fcp = True, mds = True):
@@ -87,8 +87,10 @@ def test_init(init_name, model, train_loader,\
         writer.add_scalar(f'{init_name}/Accuracy/train', train_accuracy, epoch)
         writer.add_scalar(f'{init_name}/Loss/validate', val_loss, epoch)
         writer.add_scalar(f'{init_name}/Accuracy/validate', val_accuracy, epoch)
-        print(f"stats: {train_loss:.2f}, {100 * train_accuracy:.2f}%, {val_loss:.2f}, {100 * val_accuracy:.2f}%")
-    #plotter.plot(False)
+        # print(f"stats: {train_loss:.2f}, {100 * train_accuracy:.2f}%," 
+        #       f"{val_loss:.2f}, {100 * val_accuracy:.2f}%")
+
+    plotter.plot(False)
 
 
 def train_epoch(model, optimizer, criterion, train_loader,\
@@ -104,7 +106,8 @@ def train_epoch(model, optimizer, criterion, train_loader,\
         spp = ExitStack()
 
     for i, (x, y) in tqdm.tqdm(enumerate(train_loader), total = len(train_loader)):
-        #plotter.record_datapoint()
+        if plotter != None:
+            plotter.record_datapoint()
         x = x.to(DEVICE)
         y = y.to(DEVICE)
 
