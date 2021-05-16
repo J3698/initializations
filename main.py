@@ -52,7 +52,8 @@ def main():
         raise Exception("Dataset must be one of libri, mnist, cifar!")
 
     writer = SummaryWriter()
-    test_all_inits(train_loader, val_loader, models, writer)
+    test_all_inits(train_loader, val_loader, models, 
+                   writer, spp = False, fcp = False, mds = False)
 
 
 if __name__ == "__main__":

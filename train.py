@@ -25,9 +25,10 @@ from util.corrrelation_plots import CorrelationPlotter
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-NUM_EPOCHS = 2
+NUM_EPOCHS = 50
 
-def test_all_inits(train_loader, val_loader, models, writer):
+def test_all_inits(train_loader, val_loader, models, writer,\
+                   spp = True, fcp = True, mds = True):
     if not sys.warnoptions:
         warnings.simplefilter("once")
 
@@ -46,8 +47,11 @@ def test_all_inits(train_loader, val_loader, models, writer):
 
                 try:
                     model = model_type(nonlinearity = nonlinearity)
+                    print(f"Testing init: {test_name}")
                     init(model, train_loader, show_progress = True)
-                    test_init(test_name, model, train_loader, val_loader, writer, test_name)
+                    test_init(test_name, model, train_loader,\
+                              val_loader, writer, test_name,\
+                              spp = spp, fcp = fcp, mds = mds)
                     succesful.append(test_name)
                 except Exception:
                     print(traceback.format_exc())
@@ -59,19 +63,22 @@ def test_all_inits(train_loader, val_loader, models, writer):
     print(f"Failed: {failed}")
 
 
-def test_init(init_name, model, train_loader, val_loader, writer, test_name):
-    print(f"Testing init: {init_name}")
-
+def test_init(init_name, model, train_loader,\
+              val_loader, writer, test_name,\
+              spp = True, fcp = True, mds = True):
     model.to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr = 1e-4)
     scheduler = lr_scheduler.StepLR(optimizer, step_size = 10, gamma = 0.95)
     criterion = nn.CrossEntropyLoss()
     plotter = CorrelationPlotter(model, f"./CORm/{test_name}")
-    plotter = None
+    if not fcp:
+        plotter = None
 
     for epoch in range(NUM_EPOCHS):
-        visualize_weights_mlp(model, train_loader, "./MDSm", str(epoch), test_name)
-        train_loss, train_accuracy = train_epoch(model, optimizer, criterion, train_loader, epoch, init_name, plotter)
+        if mds:
+            visualize_weights_mlp(model, train_loader,\
+                                  "./MDSm", str(epoch), test_name)
+        train_loss, train_accuracy = train_epoch(model, optimizer, criterion, train_loader, epoch, init_name, plotter, spp = spp)
         val_loss, val_accuracy = validate(model, criterion, val_loader)
 
         scheduler.step()
@@ -85,13 +92,17 @@ def test_init(init_name, model, train_loader, val_loader, writer, test_name):
 
 
 def train_epoch(model, optimizer, criterion, train_loader,\
-                epoch, init_name, plotter):
+                epoch, init_name, plotter, spp = True):
     correct, total = 0.0, 0.0
     total_loss = 0.0
 
     model.train()
 
-    spp = SignalPropagationPlotter(model, f"./SPPm/{init_name}-{epoch}")
+    if spp:
+        spp = SignalPropagationPlotter(model, f"./SPPm/{init_name}-{epoch}")
+    else:
+        spp = ExitStack()
+
     for i, (x, y) in tqdm.tqdm(enumerate(train_loader), total = len(train_loader)):
         #plotter.record_datapoint()
         x = x.to(DEVICE)

@@ -16,11 +16,11 @@ init_types = {\
     #initialize_he: {\
     #    "include_nonlinearities": [nn.ReLU]
     #},
-    initialize_orthogonal: {},
+    #initialize_orthogonal: {},
     #initialize_lsuv_pca: {},
-    initialize_lsuv_zca: {},
+    #initialize_lsuv_zca: {},
     #initialize_pca: {},
-    initialize_lsuv_kmeans: {},
+    #initialize_lsuv_kmeans: {},
     initialize_lsuv_random_samples: {},
     #initialize_random_samples: {},
     #initialize_zca: {},
